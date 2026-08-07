@@ -37,24 +37,11 @@ class _RankingScreenState extends State<RankingScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: Text(
-          'CLASSEMENT',
-          style: Theme.of(context).textTheme.labelLarge?.copyWith(
-            fontSize: 20,
-            shadows: [Shadow(color: AppColors.primary.withValues(alpha: 0.5), blurRadius: 10)],
-          ),
-        ),
-        centerTitle: true,
-      ),
       body: Stack(
         children: [
           Column(
             children: [
-              const SizedBox(height: 10),
+              const SizedBox(height: 110), // Espace pour le TopBar
               const UserRankBanner(rank: 5, name: 'COMMANDER_NEON'),
               
               Padding(
@@ -71,7 +58,7 @@ class _RankingScreenState extends State<RankingScreen> {
               Expanded(
                 child: ListWheelScrollView.useDelegate(
                   controller: _controller,
-                  itemExtent: 90, // Hauteur fixe pour chaque carte
+                  itemExtent: 80, 
                   physics: const FixedExtentScrollPhysics(),
                   perspective: 0.002,
                   diameterRatio: 2.5,
@@ -103,7 +90,7 @@ class _RankingScreenState extends State<RankingScreen> {
                                 avatar: player['avatar'],
                                 isCurrentUser: player['isMe'] ?? false,
                                 isTopOne: player['isTop'] ?? false,
-                                isFocused: isFocused, // Nouveau paramètre pour forcer le style
+                                isFocused: isFocused,
                               ),
                             ),
                           ),
@@ -113,7 +100,7 @@ class _RankingScreenState extends State<RankingScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 100), // Espace pour la bottom bar
+              const SizedBox(height: 100),
             ],
           ),
         ],

@@ -9,45 +9,8 @@ class ShopScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: Text(
-          'BOUTIQUE',
-          style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                fontSize: 20,
-                shadows: [
-                  Shadow(color: AppColors.primary.withValues(alpha: 0.5), blurRadius: 10)
-                ],
-              ),
-        ),
-        centerTitle: true,
-        actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 16),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  '1 250',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
-                ),
-                const SizedBox(width: 6),
-                const Icon(Icons.monetization_on, color: AppColors.primary, size: 14),
-              ],
-            ),
-          ),
-        ],
-      ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 10, 0, 100), // Left padding only to allow cards to reach right edge
+        padding: const EdgeInsets.fromLTRB(20, 110, 0, 100), // Padding haut important pour laisser la place au TopBar
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -119,7 +82,7 @@ class ShopScreen extends StatelessWidget {
 
   Widget _buildShopList({required List<Map<String, dynamic>> items, required String category}) {
     return SizedBox(
-      height: 240, // Height of the card area
+      height: 240,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),

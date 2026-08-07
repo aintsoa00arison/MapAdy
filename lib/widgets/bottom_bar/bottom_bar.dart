@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import '../../theme/app_colors.dart';
 import 'nav_item.dart';
 
+// Global Notifier for navigation to allow jumping tabs from anywhere
+final ValueNotifier<int> navigationNotifier = ValueNotifier<int>(0);
+
 class CyberBottomBar extends StatelessWidget {
   final int activeIndex;
   final Function(int) onTap;
@@ -17,11 +20,10 @@ class CyberBottomBar extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
       child: Container(
-        height: 60, // Slightly more compact
+        height: 60,
         decoration: BoxDecoration(
           color: AppColors.background.withValues(alpha: 0.98),
           borderRadius: BorderRadius.circular(15),
-          // Rose Blur Border (Secondary color)
           border: Border.all(color: AppColors.secondary.withValues(alpha: 0.6), width: 1.5),
           boxShadow: [
             BoxShadow(

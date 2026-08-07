@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_theme.dart';
+import 'gadget_list_modal.dart';
 
 class StatsCard extends StatelessWidget {
   const StatsCard({super.key});
@@ -18,25 +19,45 @@ class StatsCard extends StatelessWidget {
             children: [
               Text(
                 'STATS',
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(fontSize: 12),
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(fontSize: 10),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: AppTheme.hudDecoration,
-                child: Row(
-                  children: const [
-                    Icon(Icons.monetization_on, color: AppColors.primary, size: 14),
-                    SizedBox(width: 6),
-                    Text(
-                      '1 250',
-                      style: TextStyle(
-                        color: AppColors.primary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
+              Row(
+                children: [
+                  GestureDetector(
+                    onTap: () => GadgetListModal.show(context),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppColors.primary.withValues(alpha: 0.4)),
+                      ),
+                      child: const Text(
+                        'VOIR GADGETS',
+                        style: TextStyle(color: AppColors.primary, fontSize: 9, fontWeight: FontWeight.bold),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: AppTheme.hudDecoration,
+                    child: Row(
+                      children: const [
+                        Icon(Icons.monetization_on, color: AppColors.primary, size: 14),
+                        SizedBox(width: 6),
+                        Text(
+                          '1 250',
+                          style: TextStyle(
+                            color: AppColors.primary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

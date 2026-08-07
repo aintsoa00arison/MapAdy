@@ -43,6 +43,25 @@ class _RootNavigationState extends State<RootNavigation> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    // Listen to global navigation requests
+    navigationNotifier.addListener(_onNavigationRequest);
+  }
+
+  @override
+  void dispose() {
+    navigationNotifier.removeListener(_onNavigationRequest);
+    super.dispose();
+  }
+
+  void _onNavigationRequest() {
+    setState(() {
+      _currentIndex = navigationNotifier.value;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Stack(
@@ -53,19 +72,15 @@ class _RootNavigationState extends State<RootNavigation> {
             children: _screens,
           ),
 
-          // Top Bar (Always visible)
-          // Hide TopBar on Ranking for specific look or keep it? 
-          // User wanted TopBar visible in previous steps, but Ranking has its own AppBar.
-          // Let's keep it consistent: RankingScreen now doesn't need its own AppBar if Root handles it.
-          if (_currentIndex != 2) // Optional: hide standard top bar on Ranking if preferred
-            const Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: SafeArea(
-                child: TopBar(),
-              ),
+          // Top Bar (Always visible and overlaying)
+          const Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SafeArea(
+              child: TopBar(),
             ),
+          ),
 
           // Bottom Bar (Always visible)
           Positioned(
