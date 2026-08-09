@@ -1,5 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme/app_colors.dart';
+import '../../services/user_service.dart';
+import '../../services/auth_service.dart';
 import 'widgets/ranking_card.dart';
 import 'widgets/user_rank_banner.dart';
 
@@ -11,8 +15,46 @@ class RankingScreen extends StatefulWidget {
 }
 
 class _RankingScreenState extends State<RankingScreen> {
-  final FixedExtentScrollController _controller = FixedExtentScrollController(initialItem: 4);
-  int _focusedIndex = 4;
+  late FixedExtentScrollController _controller;
+  int _focusedIndex = 0;
+  List<dynamic> _players = [];
+  bool _isLoading = true;
+  Map<String, dynamic>? _currentUser;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = FixedExtentScrollController();
+    _fetchData();
+  }
+
+  Future<void> _fetchData() async {
+    setState(() => _isLoading = true);
+    
+    // 1. Charger l'utilisateur local pour savoir qui est "Moi"
+    final prefs = await SharedPreferences.getInstance();
+    final String? userJson = prefs.getString(AuthService.userKey);
+    if (userJson != null) {
+      _currentUser = jsonDecode(userJson);
+    }
+
+    // 2. Récupérer le classement depuis le serveur
+    final leaderboard = await UserService().getLeaderboard();
+    
+    if (leaderboard != null) {
+      // Trouver l'index de l'utilisateur actuel dans le classement
+      int myIndex = leaderboard.indexWhere((p) => p['id'] == _currentUser?['id']);
+      
+      setState(() {
+        _players = leaderboard;
+        _focusedIndex = myIndex != -1 ? myIndex : 0;
+        _isLoading = false;
+        _controller = FixedExtentScrollController(initialItem: _focusedIndex);
+      });
+    } else {
+      setState(() => _isLoading = false);
+    }
+  }
 
   @override
   void dispose() {
@@ -22,18 +64,18 @@ class _RankingScreenState extends State<RankingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final List<Map<String, dynamic>> players = [
-      {'rank': 1, 'name': 'CYBER_NINJA', 'wins': 142, 'points': 9999, 'avatar': 'assets/avatar/avatar_2.jpeg', 'isTop': true},
-      {'rank': 2, 'name': 'SHADOW_WALKER', 'wins': 128, 'points': 8450, 'avatar': 'assets/avatar/avatar_3.jpeg', 'isTop': false},
-      {'rank': 3, 'name': 'STEALTH_PUNK', 'wins': 132, 'points': 5100, 'avatar': 'assets/avatar/avatar_4.jpeg', 'isTop': false},
-      {'rank': 4, 'name': 'NEON_GHOST', 'wins': 128, 'points': 4850, 'avatar': 'assets/avatar/avatar_5.jpeg', 'isTop': false},
-      {'rank': 5, 'name': 'COMMANDER_NEON', 'wins': 125, 'points': 4720, 'avatar': 'assets/avatar/avatar_1.jpeg', 'isTop': false, 'isMe': true},
-      {'rank': 6, 'name': 'VOID_RUNNER', 'wins': 122, 'points': 4600, 'avatar': 'assets/avatar/avatar_6.jpeg', 'isTop': false},
-      {'rank': 7, 'name': 'GLITCH_KING', 'wins': 119, 'points': 4450, 'avatar': 'assets/avatar/avatar_7.jpeg', 'isTop': false},
-      {'rank': 8, 'name': 'DATA_BREAKER', 'wins': 95, 'points': 3900, 'avatar': 'assets/avatar/avatar_8.jpeg', 'isTop': false},
-      {'rank': 9, 'name': 'CODE_PHANTOM', 'wins': 88, 'points': 3200, 'avatar': 'assets/avatar/avatar_9.jpeg', 'isTop': false},
-      {'rank': 10, 'name': 'BIO_HACKER', 'wins': 75, 'points': 2800, 'avatar': 'assets/avatar/avatar_10.jpeg', 'isTop': false},
-    ];
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: AppColors.background,
+        body: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+      );
+    }
+
+    // Infos pour la bannière du haut (basées sur l'utilisateur actuel dans la liste)
+    final myDataInList = _players.firstWhere(
+      (p) => p['id'] == _currentUser?['id'], 
+      orElse: () => _players.isNotEmpty ? _players[0] : {'rank_position': 0, 'username': '---'}
+    );
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -41,8 +83,11 @@ class _RankingScreenState extends State<RankingScreen> {
         children: [
           Column(
             children: [
-              const SizedBox(height: 110), // Espace pour le TopBar
-              const UserRankBanner(rank: 5, name: 'COMMANDER_NEON'),
+              const SizedBox(height: 110), 
+              UserRankBanner(
+                rank: myDataInList['rank_position'], 
+                name: myDataInList['username']
+              ),
               
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10),
@@ -56,9 +101,11 @@ class _RankingScreenState extends State<RankingScreen> {
               ),
 
               Expanded(
-                child: ListWheelScrollView.useDelegate(
+                child: _players.isEmpty 
+                ? const Center(child: Text("AUCUNE DONNÉE", style: TextStyle(color: Colors.white24)))
+                : ListWheelScrollView.useDelegate(
                   controller: _controller,
-                  itemExtent: 80, 
+                  itemExtent: 85, 
                   physics: const FixedExtentScrollPhysics(),
                   perspective: 0.002,
                   diameterRatio: 2.5,
@@ -68,10 +115,11 @@ class _RankingScreenState extends State<RankingScreen> {
                     });
                   },
                   childDelegate: ListWheelChildBuilderDelegate(
-                    childCount: players.length,
+                    childCount: _players.length,
                     builder: (context, index) {
-                      final player = players[index];
+                      final player = _players[index];
                       final isFocused = _focusedIndex == index;
+                      final isMe = player['id'] == _currentUser?['id'];
                       
                       return Center(
                         child: Padding(
@@ -83,13 +131,13 @@ class _RankingScreenState extends State<RankingScreen> {
                               opacity: isFocused ? 1.0 : 0.5,
                               duration: const Duration(milliseconds: 200),
                               child: RankingCard(
-                                rank: player['rank'],
-                                name: player['name'],
-                                wins: player['wins'],
-                                points: player['points'],
+                                rank: player['rank_position'],
+                                name: player['username'],
+                                wins: player['quiz_victories'],
+                                points: player['gold'],
                                 avatar: player['avatar'],
-                                isCurrentUser: player['isMe'] ?? false,
-                                isTopOne: player['isTop'] ?? false,
+                                isCurrentUser: isMe,
+                                isTopOne: player['rank_position'] == 1,
                                 isFocused: isFocused,
                               ),
                             ),

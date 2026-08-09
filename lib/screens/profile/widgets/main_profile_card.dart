@@ -4,16 +4,25 @@ import '../../../theme/app_theme.dart';
 
 class MainProfileCard extends StatelessWidget {
   final String avatarPath;
+  final String username;
+  final String email;
   final VoidCallback onEditAvatar;
 
   const MainProfileCard({
     super.key,
     required this.avatarPath,
+    required this.username,
+    required this.email,
     required this.onEditAvatar,
   });
 
   @override
   Widget build(BuildContext context) {
+    // Résolution dynamique du chemin (nom seul ou chemin complet)
+    final String fullAvatarPath = avatarPath.startsWith('assets') 
+        ? avatarPath 
+        : 'assets/avatar/$avatarPath';
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
@@ -36,7 +45,7 @@ class MainProfileCard extends StatelessWidget {
                     backgroundColor: Colors.black,
                     child: ClipOval(
                       child: Image.asset(
-                        avatarPath,
+                        fullAvatarPath,
                         width: 120,
                         height: 120,
                         fit: BoxFit.cover,
@@ -63,7 +72,7 @@ class MainProfileCard extends StatelessWidget {
           ),
           const SizedBox(height: 24),
           Text(
-            'COMMANDER_NEON',
+            username.toUpperCase(),
             style: Theme.of(context).textTheme.displayLarge?.copyWith(
                   fontSize: 24,
                   color: AppColors.primary,
@@ -73,9 +82,9 @@ class MainProfileCard extends StatelessWidget {
                 ),
           ),
           const SizedBox(height: 8),
-          const Text(
-            'neon.ops@sector7.net',
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+          Text(
+            email,
+            style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
           ),
           const SizedBox(height: 20),
           Container(

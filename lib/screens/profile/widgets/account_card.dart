@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
+import '../../../theme/app_colors.dart';
 import '../../../theme/app_theme.dart';
+import '../privacy_screen.dart';
+import '../link_account_screen.dart';
 
 class AccountCard extends StatelessWidget {
-  const AccountCard({super.key});
+  final int? userId;
+
+  const AccountCard({super.key, this.userId});
 
   @override
   Widget build(BuildContext context) {
@@ -17,32 +22,57 @@ class AccountCard extends StatelessWidget {
             style: Theme.of(context).textTheme.labelLarge?.copyWith(fontSize: 12),
           ),
           const SizedBox(height: 16),
-          _buildActionRow(Icons.link, 'Lier le compte'),
+          _buildActionRow(
+            context,
+            Icons.link,
+            'Lier le compte',
+            onTap: () {
+              if (userId != null) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => LinkAccountScreen(userId: userId!)),
+                );
+              }
+            },
+          ),
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 8),
             child: Divider(color: Colors.white10, height: 1),
           ),
-          _buildActionRow(Icons.security, 'Politique de confidentialité'),
+          _buildActionRow(
+            context,
+            Icons.security,
+            'Politique de confidentialité',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const PrivacyScreen()),
+              );
+            },
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildActionRow(IconData icon, String label) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: [
-          Icon(icon, color: Colors.white70, size: 20),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Text(
-              label,
-              style: const TextStyle(color: Colors.white, fontSize: 14),
+  Widget _buildActionRow(BuildContext context, IconData icon, String label, {VoidCallback? onTap}) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            Icon(icon, color: Colors.white70, size: 20),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(color: Colors.white, fontSize: 14),
+              ),
             ),
-          ),
-          const Icon(Icons.chevron_right, color: Colors.white30, size: 20),
-        ],
+            const Icon(Icons.chevron_right, color: Colors.white30, size: 20),
+          ],
+        ),
       ),
     );
   }

@@ -3,7 +3,9 @@ import '../../../theme/app_colors.dart';
 import '../../../theme/app_theme.dart';
 
 class IntelCard extends StatelessWidget {
-  const IntelCard({super.key});
+  final String joinedDate;
+
+  const IntelCard({super.key, required this.joinedDate});
 
   @override
   Widget build(BuildContext context) {
@@ -33,9 +35,9 @@ class IntelCard extends StatelessWidget {
               'Date d\'inscription',
               style: TextStyle(color: Colors.white60, fontSize: 12),
             ),
-            subtitle: const Text(
-              'Oct 2024',
-              style: TextStyle(
+            subtitle: Text(
+              joinedDate,
+              style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
                 fontSize: 16,

@@ -1,62 +1,79 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import '../services/shop_service.dart';
 import 'shop/widgets/shop_card.dart';
 
-class ShopScreen extends StatelessWidget {
+class ShopScreen extends StatefulWidget {
   const ShopScreen({super.key});
 
   @override
+  State<ShopScreen> createState() => _ShopScreenState();
+}
+
+class _ShopScreenState extends State<ShopScreen> {
+  final ShopService _shopService = ShopService();
+  List<dynamic> _gadgets = [];
+  List<dynamic> _avatars = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchShopData();
+  }
+
+  Future<void> _fetchShopData() async {
+    setState(() => _isLoading = true);
+    final gadgets = await _shopService.getGadgets();
+    final avatars = await _shopService.getAvatars();
+    
+    if (mounted) {
+      setState(() {
+        _gadgets = gadgets ?? [];
+        _avatars = avatars ?? [];
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: AppColors.background,
+        body: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 110, 0, 100), // Padding haut important pour laisser la place au TopBar
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSectionHeader(context, 'GADGETS', Icons.settings_input_component),
-            const SizedBox(height: 20),
-            _buildShopList(
-              items: [
-                {
-                  'name': 'Scanner EM',
-                  'desc': 'Révèle les secrets cachés dans un rayon de 500m. Idéal pour les zones urbaines.',
-                  'price': 450,
-                  'image': 'assets/images/scanner.png',
-                },
-                {
-                  'name': 'Clé Master',
-                  'desc': 'Permet d\'ouvrir des terminaux cryptés uniques dans les secteurs protégés.',
-                  'price': 850,
-                  'image': 'assets/images/key.png',
-                },
-              ],
-              category: 'GADGETS',
-            ),
-            
-            const SizedBox(height: 40),
-            
-            _buildSectionHeader(context, 'AVATARS', Icons.person),
-            const SizedBox(height: 20),
-            _buildShopList(
-              items: [
-                {
-                  'name': 'Ghost Protocol',
-                  'desc': 'Infiltration niveau 40. Un look inspiré des nettoyeurs des bas-fonds.',
-                  'price': 2500,
-                  'image': 'assets/avatar/avatar_6.jpeg',
-                  'special': true,
-                },
-                {
-                  'name': 'Urbex Ninja',
-                  'desc': 'Vêtements techniques haute résistance pour escalade urbaine.',
-                  'price': 1200,
-                  'image': 'assets/avatar/avatar_7.jpeg',
-                },
-              ],
-              category: 'AVATARS',
-            ),
-          ],
+      body: RefreshIndicator(
+        onRefresh: _fetchShopData,
+        color: AppColors.primary,
+        backgroundColor: AppColors.background,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 110, 0, 100),
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildSectionHeader(context, 'GADGETS', Icons.settings_input_component),
+              const SizedBox(height: 20),
+              _buildShopList(
+                items: _gadgets,
+                category: 'GADGETS',
+              ),
+              
+              const SizedBox(height: 40),
+              
+              _buildSectionHeader(context, 'AVATARS', Icons.person),
+              const SizedBox(height: 20),
+              _buildShopList(
+                items: _avatars,
+                category: 'AVATARS',
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -80,7 +97,14 @@ class ShopScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildShopList({required List<Map<String, dynamic>> items, required String category}) {
+  Widget _buildShopList({required List<dynamic> items, required String category}) {
+    if (items.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.only(top: 20),
+        child: Text("AUCUN ARTICLE DISPONIBLE", style: TextStyle(color: Colors.white10, fontSize: 12)),
+      );
+    }
+
     return SizedBox(
       height: 240,
       child: ListView.builder(
@@ -90,12 +114,13 @@ class ShopScreen extends StatelessWidget {
         itemBuilder: (context, index) {
           final item = items[index];
           return ShopCard(
+            itemId: item['id'],
             name: item['name'],
-            description: item['desc'],
+            description: item['description'] ?? '',
             price: item['price'],
-            imagePath: item['image'],
+            imagePath: item['image_url'] ?? '',
             category: category,
-            isSpecial: item['special'] ?? false,
+            isSpecial: category == 'AVATARS',
           );
         },
       ),

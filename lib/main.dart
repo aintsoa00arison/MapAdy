@@ -1,4 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'theme/app_theme.dart';
 import 'widgets/top_bar/top_bar.dart';
 import 'widgets/bottom_bar/bottom_bar.dart';
@@ -6,8 +9,13 @@ import 'screens/mapady_screen.dart';
 import 'screens/shop_screen.dart';
 import 'screens/ranking/ranking_screen.dart';
 import 'screens/territory_screen.dart';
+import 'widgets/auth_gate.dart';
+import 'services/auth_service.dart';
+import 'services/user_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
   runApp(const MapAdyApp());
 }
 
@@ -20,7 +28,7 @@ class MapAdyApp extends StatelessWidget {
       title: 'mapADy',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.cyberNoirTheme,
-      home: const RootNavigation(),
+      home: const AuthGate(),
     );
   }
 }
@@ -34,6 +42,7 @@ class RootNavigation extends StatefulWidget {
 
 class _RootNavigationState extends State<RootNavigation> {
   int _currentIndex = 0;
+  Map<String, dynamic>? _userData;
 
   final List<Widget> _screens = [
     const MapadyScreen(),
@@ -45,7 +54,7 @@ class _RootNavigationState extends State<RootNavigation> {
   @override
   void initState() {
     super.initState();
-    // Listen to global navigation requests
+    _loadUserSession();
     navigationNotifier.addListener(_onNavigationRequest);
   }
 
@@ -55,10 +64,37 @@ class _RootNavigationState extends State<RootNavigation> {
     super.dispose();
   }
 
+  Future<void> _loadUserSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? userJson = prefs.getString(AuthService.userKey);
+    if (userJson != null) {
+      setState(() {
+        _userData = jsonDecode(userJson);
+      });
+      _refreshUserData();
+    }
+  }
+
+  Future<void> _refreshUserData() async {
+    if (_userData != null) {
+      final updatedUser = await UserService().getProfile(_userData!['id']);
+      if (updatedUser != null) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(AuthService.userKey, jsonEncode(updatedUser));
+        if (mounted) {
+          setState(() {
+            _userData = updatedUser;
+          });
+        }
+      }
+    }
+  }
+
   void _onNavigationRequest() {
     setState(() {
       _currentIndex = navigationNotifier.value;
     });
+    _refreshUserData();
   }
 
   @override
@@ -66,23 +102,26 @@ class _RootNavigationState extends State<RootNavigation> {
     return Scaffold(
       body: Stack(
         children: [
-          // Dynamic Body Content
           IndexedStack(
             index: _currentIndex,
             children: _screens,
           ),
 
-          // Top Bar (Always visible and overlaying)
-          const Positioned(
+          // Top Bar avec callback de rafraîchissement
+          Positioned(
             top: 0,
             left: 0,
             right: 0,
             child: SafeArea(
-              child: TopBar(),
+              child: TopBar(
+                username: _userData?['username'] ?? 'AGENT',
+                gold: _userData?['gold'] ?? 0,
+                avatarPath: _userData?['avatar'] ?? 'avatar_1.jpeg',
+                onProfileReturn: _refreshUserData,
+              ),
             ),
           ),
 
-          // Bottom Bar (Always visible)
           Positioned(
             bottom: 0,
             left: 0,

@@ -1,9 +1,13 @@
 import 'dart:ui';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../theme/app_colors.dart';
 import '../../../widgets/bottom_bar/bottom_bar.dart';
+import '../../../services/auth_service.dart';
+import '../../../services/user_service.dart';
 
-class AvatarPicker extends StatelessWidget {
+class AvatarPicker extends StatefulWidget {
   final String selectedAvatar;
   final Function(String) onAvatarSelected;
 
@@ -13,19 +17,49 @@ class AvatarPicker extends StatelessWidget {
     required this.onAvatarSelected,
   });
 
-  // Liste des avatars avec état de verrouillage
-  static const List<Map<String, dynamic>> _availableAvatars = [
-    {'path': 'assets/avatar/avatar_1.jpeg', 'locked': false},
-    {'path': 'assets/avatar/avatar_2.jpeg', 'locked': false},
-    {'path': 'assets/avatar/avatar_3.jpeg', 'locked': false},
-    {'path': 'assets/avatar/avatar_4.jpeg', 'locked': false},
-    {'path': 'assets/avatar/avatar_5.jpeg', 'locked': false},
-    {'path': 'assets/avatar/avatar_6.jpeg', 'locked': true},
-    {'path': 'assets/avatar/avatar_7.jpeg', 'locked': true},
-    {'path': 'assets/avatar/avatar_8.jpeg', 'locked': true},
-    {'path': 'assets/avatar/avatar_9.jpeg', 'locked': true},
-    {'path': 'assets/avatar/avatar_10.jpeg', 'locked': true},
+  @override
+  State<AvatarPicker> createState() => _AvatarPickerState();
+}
+
+class _AvatarPickerState extends State<AvatarPicker> {
+  List<String> _ownedAvatars = ['avatar_default.jpeg'];
+  bool _isLoading = true;
+
+  // Liste complète des avatars disponibles
+  static const List<Map<String, dynamic>> _allAvatars = [
+    {'name': 'Standard', 'path': 'avatar_default.jpeg'},
+    {'name': 'Scavenger', 'path': 'avatar_1.jpeg'},
+    {'name': 'Vision', 'path': 'avatar_2.jpeg'},
+    {'name': 'Slice', 'path': 'avatar_3.jpeg'},
+    {'name': 'Stalker', 'path': 'avatar_4.jpeg'},
+    {'name': 'Hacker', 'path': 'avatar_5.jpeg'},
+    {'name': 'Netrunner', 'path': 'avatar_6.jpeg'},
+    {'name': 'Skull', 'path': 'avatar_7.jpeg'},
+    {'name': 'Puppet', 'path': 'avatar_8.jpeg'},
+    {'name': 'Sicko', 'path': 'avatar_9.jpeg'},
+    {'name': 'Shadow', 'path': 'avatar_10.jpeg'},
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchOwnedAvatars();
+  }
+
+  Future<void> _fetchOwnedAvatars() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? userJson = prefs.getString(AuthService.userKey);
+    if (userJson != null) {
+      final user = jsonDecode(userJson);
+      final owned = await UserService().getOwnedAvatars(user['id']);
+      if (mounted) {
+        setState(() {
+          if (owned != null) _ownedAvatars = ['avatar_default.jpeg', ...owned];
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -44,14 +78,14 @@ class AvatarPicker extends StatelessWidget {
             Container(
               width: 50,
               height: 4,
+              margin: const EdgeInsets.only(bottom: 20),
               decoration: BoxDecoration(
                 color: AppColors.primary.withValues(alpha: 0.5),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            const SizedBox(height: 25),
             Text(
-              'CHOISIR UN AVATAR OPERATIONNEL',
+              'CHOISIR UN AVATAR OPÉRATIONNEL',
               style: Theme.of(context).textTheme.labelLarge?.copyWith(
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
@@ -59,90 +93,109 @@ class AvatarPicker extends StatelessWidget {
                     color: AppColors.primary,
                   ),
             ),
-            const SizedBox(height: 35),
-            SizedBox(
-              height: 130,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                physics: const BouncingScrollPhysics(),
-                itemCount: _availableAvatars.length,
-                itemBuilder: (context, index) {
-                  final avatarData = _availableAvatars[index];
-                  final String avatarPath = avatarData['path'];
-                  final bool isLocked = avatarData['locked'];
-                  final isSelected = selectedAvatar == avatarPath;
+            const SizedBox(height: 30),
+            if (_isLoading)
+              const SizedBox(height: 150, child: Center(child: CircularProgressIndicator()))
+            else
+              SizedBox(
+                height: 140,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  itemCount: _allAvatars.length,
+                  itemBuilder: (context, index) {
+                    final avatarData = _allAvatars[index];
+                    final String avatarName = avatarData['name'];
+                    final String avatarFile = avatarData['path'];
+                    final String fullPath = 'assets/avatar/$avatarFile';
+                    
+                    final bool isOwned = _ownedAvatars.contains(avatarFile);
+                    final isSelected = widget.selectedAvatar == avatarFile || widget.selectedAvatar == fullPath;
 
-                  return GestureDetector(
-                    onTap: () {
-                      if (isLocked) {
-                        // Redirect to shop if locked
-                        Navigator.pop(context); // Close modal
-                        Navigator.pop(context); // Exit profile
-                        navigationNotifier.value = 1; // Go to Shop tab
-                      } else {
-                        onAvatarSelected(avatarPath);
-                        Navigator.pop(context);
-                      }
-                    },
-                    child: AnimatedScale(
-                      scale: isSelected ? 1.1 : 1.0,
-                      duration: const Duration(milliseconds: 200),
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 12),
-                        padding: const EdgeInsets.all(3),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: isSelected 
-                                ? AppColors.primary 
-                                : (isLocked ? Colors.white10 : Colors.white24),
-                            width: 2,
-                          ),
-                          boxShadow: isSelected ? [
-                            BoxShadow(
-                              color: AppColors.primary.withValues(alpha: 0.6),
-                              blurRadius: 15,
-                              spreadRadius: 2,
-                            )
-                          ] : [],
-                        ),
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            Opacity(
-                              opacity: isLocked ? 0.4 : 1.0,
-                              child: CircleAvatar(
-                                radius: 45,
-                                backgroundColor: Colors.black,
-                                child: ClipOval(
-                                  child: Image.asset(
-                                    avatarPath,
-                                    width: 90,
-                                    height: 90,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) => const Icon(
-                                      Icons.person_off,
-                                      color: AppColors.primary,
-                                      size: 40,
+                    return GestureDetector(
+                      onTap: () {
+                        if (!isOwned) {
+                          Navigator.pop(context); 
+                          Navigator.pop(context); 
+                          navigationNotifier.value = 1; 
+                        } else {
+                          widget.onAvatarSelected(avatarFile);
+                          Navigator.pop(context);
+                        }
+                      },
+                      child: Column(
+                        children: [
+                          AnimatedScale(
+                            scale: isSelected ? 1.1 : 1.0,
+                            duration: const Duration(milliseconds: 200),
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 12),
+                              padding: const EdgeInsets.all(3),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: isSelected 
+                                      ? AppColors.primary 
+                                      : (isOwned ? Colors.white24 : Colors.white10),
+                                  width: 2,
+                                ),
+                                boxShadow: isSelected ? [
+                                  BoxShadow(
+                                    color: AppColors.primary.withValues(alpha: 0.6),
+                                    blurRadius: 15,
+                                    spreadRadius: 2,
+                                  )
+                                ] : [],
+                              ),
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  Opacity(
+                                    opacity: isOwned ? 1.0 : 0.3,
+                                    child: CircleAvatar(
+                                      radius: 35,
+                                      backgroundColor: Colors.black,
+                                      child: ClipOval(
+                                        child: Image.asset(
+                                          fullPath,
+                                          width: 70,
+                                          height: 70,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (context, error, stackTrace) => const Icon(
+                                            Icons.person_off,
+                                            color: AppColors.primary,
+                                            size: 25,
+                                          ),
+                                        ),
+                                      ),
                                     ),
                                   ),
-                                ),
+                                  if (!isOwned)
+                                    const Icon(
+                                      Icons.lock_outline,
+                                      color: AppColors.secondary,
+                                      size: 20,
+                                    ),
+                                ],
                               ),
                             ),
-                            if (isLocked)
-                              const Icon(
-                                Icons.lock_outline,
-                                color: AppColors.secondary,
-                                size: 30,
-                              ),
-                          ],
-                        ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            avatarName.toUpperCase(),
+                            style: TextStyle(
+                              color: isSelected ? AppColors.primary : Colors.white30,
+                              fontSize: 7, // Even smaller font size
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
-            ),
             const SizedBox(height: 10),
             Text(
               'DÉFILEZ POUR VOIR PLUS',

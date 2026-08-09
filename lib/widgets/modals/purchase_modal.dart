@@ -1,25 +1,53 @@
 import 'dart:ui';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme/app_colors.dart';
+import '../../services/auth_service.dart';
+import '../../services/shop_service.dart';
+import '../../widgets/cyber_toast.dart';
 
 class PurchaseModal extends StatelessWidget {
+  final int itemId;
   final String itemName;
   final int price;
   final String category;
 
   const PurchaseModal({
     super.key,
+    required this.itemId,
     required this.itemName,
     required this.price,
     required this.category,
   });
 
-  static void show(BuildContext context, {required String itemName, required int price, required String category}) {
+  static void show(BuildContext context, {required int itemId, required String itemName, required int price, required String category}) {
     showDialog(
       context: context,
       barrierColor: Colors.black.withValues(alpha: 0.8),
-      builder: (context) => PurchaseModal(itemName: itemName, price: price, category: category),
+      builder: (context) => PurchaseModal(itemId: itemId, itemName: itemName, price: price, category: category),
     );
+  }
+
+  Future<void> _processPurchase(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? userJson = prefs.getString(AuthService.userKey);
+    if (userJson == null) return;
+
+    final user = jsonDecode(userJson);
+    final result = await ShopService().purchaseItem(user['id'], itemId, category);
+
+    if (context.mounted) {
+      if (result != null) {
+        // Mettre à jour l'utilisateur local avec le nouveau solde
+        await prefs.setString(AuthService.userKey, jsonEncode(result));
+        Navigator.pop(context);
+        CyberToast.show(context, "ACHAT RÉUSSI : $itemName");
+      } else {
+        Navigator.pop(context);
+        CyberToast.show(context, "CRÉDITS INSUFFISANTS OU ERREUR", isError: true);
+      }
+    }
   }
 
   @override
@@ -86,7 +114,7 @@ class PurchaseModal extends StatelessWidget {
                         onPressed: () => Navigator.pop(context),
                         style: TextButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
-                          side: BorderSide(color: Colors.white24),
+                          side: const BorderSide(color: Colors.white24),
                         ),
                         child: const Text('ANNULER', style: TextStyle(color: Colors.white54)),
                       ),
@@ -94,17 +122,7 @@ class PurchaseModal extends StatelessWidget {
                     const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: () {
-                          // Logique d'achat ici
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              backgroundColor: AppColors.secondary,
-                              content: Text('Achat de $itemName réussi !', 
-                                style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-                            ),
-                          );
-                        },
+                        onPressed: () => _processPurchase(context),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.secondary,
                           foregroundColor: Colors.black,
