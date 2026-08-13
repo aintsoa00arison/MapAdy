@@ -1,5 +1,5 @@
 import enum
-from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, Enum as SQLEnum, JSON, DateTime
+from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, Enum as SQLEnum, JSON, DateTime, Float
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from database import Base
@@ -11,6 +11,11 @@ class RankTitleEnum(str, enum.Enum):
     ELITE = "ELITE"
     COMMANDER = "COMMANDER"
     CYBER_GOD = "CYBER_GOD"
+
+class PalierTopographique(str, enum.Enum):
+    HAUTE = "HAUTE"
+    MOYENNE = "MOYENNE"
+    BASSE = "BASSE"
 
 class User(Base):
     __tablename__ = "users"
@@ -93,3 +98,18 @@ class QuizHistory(Base):
     answered_at = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User", back_populates="quiz_history")
+
+class GameBase(Base):
+    __tablename__ = "game_bases"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, nullable=False)
+    latitude = Column(Float, nullable=False)
+    longitude = Column(Float, nullable=False)
+    palier = Column(SQLEnum(PalierTopographique), nullable=False)
+    description = Column(String)
+    conquest_radius_m = Column(Float, default=15.0)
+    points_value = Column(Integer, default=150)
+
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    owner = relationship("User")

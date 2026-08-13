@@ -1,4 +1,4 @@
-name: untitled
+name: map_ady
 description: "A new Flutter project."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
@@ -35,6 +35,8 @@ dependencies:
   shared_preferences: ^2.2.2
   flutter_dotenv: ^5.1.0
   local_auth: ^2.2.0
+  maplibre_gl: ^0.26.2
+  location: ^7.0.1
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.

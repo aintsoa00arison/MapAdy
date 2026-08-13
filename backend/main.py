@@ -11,7 +11,7 @@ from use_cases.quiz_use_cases import QuizUseCases
 from logic.influence_mapper import get_gadget_modifiers
 from typing import List
 
-app = FastAPI(title="mapADy Cyber-Backend", version="3.0.0")
+app = FastAPI(title="mapADy Cyber-Backend", version="3.1.0")
 
 # Création automatique des tables au démarrage
 models.Base.metadata.create_all(bind=engine)
@@ -87,6 +87,12 @@ def purchase_item(payload: dict = Body(...), db: Session = Depends(get_db)):
     repo = UserRepository(db)
     return repo.purchase_item(user_id, item_id, category)
 
+# --- ROUTES TERRITOIRES (BASES) ---
+
+@app.get("/api/bases", response_model=List[schemas.GameBaseResponse])
+def get_all_bases(db: Session = Depends(get_db)):
+    return db.query(models.GameBase).all()
+
 # --- AUTRES ROUTES ---
 
 @app.get("/api/leaderboard", response_model=List[schemas.UserResponse])
@@ -116,7 +122,7 @@ def logout(service: UserUseCases = Depends(get_user_use_cases)):
 
 @app.get("/")
 def health_check():
-    return {"status": "ONLINE", "system": "mapADy_OS", "version": "3.0.0"}
+    return {"status": "ONLINE", "system": "mapADy_OS", "version": "3.1.0"}
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

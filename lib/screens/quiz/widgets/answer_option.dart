@@ -4,8 +4,8 @@ class AnswerOption extends StatelessWidget {
   final String label;
   final String text;
   final VoidCallback onTap;
-  final bool isCorrect; // If this is the correct answer
-  final bool isWrong;   // If this was selected and is wrong
+  final bool isCorrect; 
+  final bool isWrong;
   final bool showFeedback;
 
   const AnswerOption({

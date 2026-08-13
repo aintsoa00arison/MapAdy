@@ -39,12 +39,12 @@ class PurchaseModal extends StatelessWidget {
 
     if (context.mounted) {
       if (result != null) {
-        // Mettre à jour l'utilisateur local avec le nouveau solde
         await prefs.setString(AuthService.userKey, jsonEncode(result));
-        Navigator.pop(context);
-        CyberToast.show(context, "ACHAT RÉUSSI : $itemName");
+        if (context.mounted) {
+          Navigator.pop(context);
+          CyberToast.show(context, "ACHAT RÉUSSI : $itemName");
+        }
       } else {
-        Navigator.pop(context);
         CyberToast.show(context, "CRÉDITS INSUFFISANTS OU ERREUR", isError: true);
       }
     }

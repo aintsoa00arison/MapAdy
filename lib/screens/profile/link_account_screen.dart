@@ -27,38 +27,42 @@ class _LinkAccountScreenState extends State<LinkAccountScreen> {
         localizedReason: 'Veuillez vous authentifier pour modifier vos données sensibles',
         options: const AuthenticationOptions(biometricOnly: false, stickyAuth: true),
       );
-      if (didAuthenticate) {
+      if (didAuthenticate && mounted) {
         setState(() => _isVerified = true);
         CyberToast.show(context, "IDENTITÉ VÉRIFIÉE.");
       }
     } catch (e) {
-      CyberToast.show(context, "ÉCHEC DE VÉRIFICATION.", isError: true);
+      if (mounted) {
+        CyberToast.show(context, "ÉCHEC DE VÉRIFICATION.", isError: true);
+      }
     }
   }
 
   Future<void> _sendCode() async {
     final email = _emailController.text.trim();
     if (email.isEmpty || !email.contains('@')) {
-      CyberToast.show(context, "EMAIL INVALIDE.", isError: true);
+      if (mounted) CyberToast.show(context, "EMAIL INVALIDE.", isError: true);
       return;
     }
 
     setState(() => _isLoading = true);
     final success = await UserService().sendVerificationCode(widget.userId, email);
-    setState(() => _isLoading = false);
-
-    if (success) {
-      setState(() => _codeSent = true);
-      CyberToast.show(context, "CODE DE VÉRIFICATION ENVOYÉ.");
-    } else {
-      CyberToast.show(context, "ERREUR LORS DE L'ENVOI DU CODE.", isError: true);
+    
+    if (mounted) {
+      setState(() => _isLoading = false);
+      if (success) {
+        setState(() => _codeSent = true);
+        CyberToast.show(context, "CODE DE VÉRIFICATION ENVOYÉ.");
+      } else {
+        CyberToast.show(context, "ERREUR LORS DE L'ENVOI DU CODE.", isError: true);
+      }
     }
   }
 
   Future<void> _verifyAndSave() async {
     final code = _codeController.text.trim();
     if (code.isEmpty) {
-      CyberToast.show(context, "CODE REQUIS.", isError: true);
+      if (mounted) CyberToast.show(context, "CODE REQUIS.", isError: true);
       return;
     }
 
@@ -68,13 +72,15 @@ class _LinkAccountScreenState extends State<LinkAccountScreen> {
       _emailController.text.trim(), 
       code
     );
-    setState(() => _isLoading = false);
-
-    if (result != null) {
-      CyberToast.show(context, "EMAIL MIS À JOUR AVEC SUCCÈS.");
-      Navigator.pop(context);
-    } else {
-      CyberToast.show(context, "CODE INCORRECT OU EXPIRÉ.", isError: true);
+    
+    if (mounted) {
+      setState(() => _isLoading = false);
+      if (result != null) {
+        CyberToast.show(context, "EMAIL MIS À JOUR AVEC SUCCÈS.");
+        Navigator.pop(context);
+      } else {
+        CyberToast.show(context, "CODE INCORRECT OU EXPIRÉ.", isError: true);
+      }
     }
   }
 

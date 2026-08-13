@@ -99,44 +99,51 @@ class _RootNavigationState extends State<RootNavigation> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(
-        children: [
-          IndexedStack(
-            index: _currentIndex,
-            children: _screens,
-          ),
-
-          // Top Bar avec callback de rafraîchissement
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: SafeArea(
-              child: TopBar(
-                username: _userData?['username'] ?? 'AGENT',
-                gold: _userData?['gold'] ?? 0,
-                avatarPath: _userData?['avatar'] ?? 'avatar_1.jpeg',
-                onProfileReturn: _refreshUserData,
+    return ValueListenableBuilder<bool>(
+      valueListenable: hideBarsNotifier,
+      builder: (context, hideBars, child) {
+        return Scaffold(
+          body: Stack(
+            children: [
+              IndexedStack(
+                index: _currentIndex,
+                children: _screens,
               ),
-            ),
-          ),
 
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: CyberBottomBar(
-              activeIndex: _currentIndex,
-              onTap: (index) {
-                setState(() {
-                  _currentIndex = index;
-                });
-              },
-            ),
+              // Top Bar avec callback de rafraîchissement
+              if (!hideBars)
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: SafeArea(
+                    child: TopBar(
+                      username: _userData?['username'] ?? 'AGENT',
+                      gold: _userData?['gold'] ?? 0,
+                      avatarPath: _userData?['avatar'] ?? 'avatar_1.jpeg',
+                      onProfileReturn: _refreshUserData,
+                    ),
+                  ),
+                ),
+
+              if (!hideBars)
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: CyberBottomBar(
+                    activeIndex: _currentIndex,
+                    onTap: (index) {
+                      setState(() {
+                        _currentIndex = index;
+                      });
+                    },
+                  ),
+                ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

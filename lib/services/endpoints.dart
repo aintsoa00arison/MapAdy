@@ -18,4 +18,7 @@ class Endpoints {
   // Quiz
   static const String nextQuiz = "/quiz/next"; // + /{user_id}
   static const String submitQuiz = "/quiz/submit";
+
+  // Territoires
+  static const String bases = "/bases";
 }

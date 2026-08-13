@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../../theme/app_colors.dart';
 import '../../../theme/app_theme.dart';
 import '../privacy_screen.dart';
 import '../link_account_screen.dart';

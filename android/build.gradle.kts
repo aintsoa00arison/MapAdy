@@ -2,6 +2,8 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+        // Provide a fallback for older plugins that still look for jcenter
+        maven { url = uri("https://jcenter.bintray.com") }
     }
 }
 
