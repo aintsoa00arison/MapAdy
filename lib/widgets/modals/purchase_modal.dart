@@ -40,6 +40,7 @@ class PurchaseModal extends StatelessWidget {
     if (context.mounted) {
       if (result != null) {
         await prefs.setString(AuthService.userKey, jsonEncode(result));
+        UserSession.updateGold(result['gold'] ?? 0); // Mise à jour immédiate du HUD
         if (context.mounted) {
           Navigator.pop(context);
           CyberToast.show(context, "ACHAT RÉUSSI : $itemName");

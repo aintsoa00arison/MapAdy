@@ -54,7 +54,7 @@ class _AvatarPickerState extends State<AvatarPicker> {
       final owned = await UserService().getOwnedAvatars(user['id']);
       if (mounted) {
         setState(() {
-          if (owned != null) _ownedAvatars = ['avatar_default.jpeg', ...owned];
+          _ownedAvatars = ['avatar_default.jpeg', ...owned];
           _isLoading = false;
         });
       }

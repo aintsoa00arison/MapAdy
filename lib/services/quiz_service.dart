@@ -5,9 +5,12 @@ import 'endpoints.dart';
 class QuizService {
   final ApiClient _apiClient = ApiClient();
 
-  Future<Map<String, dynamic>?> getNextQuestion(int userId) async {
+  Future<Map<String, dynamic>?> getNextQuestion(int userId, {int? baseId}) async {
     try {
-      final response = await _apiClient.get("${Endpoints.nextQuiz}/$userId");
+      String url = "${Endpoints.nextQuiz}/$userId";
+      if (baseId != null) url += "?base_id=$baseId";
+      
+      final response = await _apiClient.get(url);
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       }
@@ -17,22 +20,45 @@ class QuizService {
     }
   }
 
-  Future<bool> submitAnswer({
+  Future<Map<String, dynamic>?> submitAnswer({
     required int userId,
-    int? questionId,
+    required int questionId,
     required bool isCorrect,
-    String? generatedText,
+    int? baseId,
+    bool isLast = false,
+    int correctCount = 0,
+    int totalQuestions = 6,
+    String? debugGadget, // Nouveau
   }) async {
     try {
       final response = await _apiClient.post(Endpoints.submitQuiz, {
         "user_id": userId,
-        "question_id": questionId ?? -1,
+        "question_id": questionId,
         "is_correct": isCorrect,
-        "generated_text": generatedText,
+        "base_id": baseId,
+        "is_last": isLast,
+        "correct_count": correctCount,
+        "total_questions": totalQuestions,
+        "debug_gadget": debugGadget,
       });
-      return response.statusCode == 200;
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+      return null;
     } catch (e) {
-      return false;
+      return null;
+    }
+  }
+
+  Future<Map<String, dynamic>?> quitQuiz(int userId) async {
+    try {
+      final response = await _apiClient.post("/quiz/quit", {"user_id": userId});
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+      return null;
+    } catch (e) {
+      return null;
     }
   }
 }

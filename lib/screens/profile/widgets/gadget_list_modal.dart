@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../theme/app_colors.dart';
 import '../../../widgets/bottom_bar/bottom_bar.dart';
 import '../../../services/auth_service.dart';
-import '../../../services/shop_service.dart';
+import '../../../services/user_service.dart';
 
 class GadgetListModal extends StatefulWidget {
   const GadgetListModal({super.key});
@@ -24,7 +24,7 @@ class GadgetListModal extends StatefulWidget {
 }
 
 class _GadgetListModalState extends State<GadgetListModal> {
-  List<dynamic> _userGadgets = [];
+  List<Map<String, dynamic>> _allGadgets = [];
   bool _isLoading = true;
 
   @override
@@ -38,10 +38,11 @@ class _GadgetListModalState extends State<GadgetListModal> {
     final String? userJson = prefs.getString(AuthService.userKey);
     if (userJson != null) {
       final user = jsonDecode(userJson);
-      final gadgets = await ShopService().getUserGadgets(user['id']);
+      // On utilise le nouvel endpoint qui renvoie TOUS les gadgets avec leur quantité possédée
+      final gadgets = await UserService().getUserGadgets(user['id']);
       if (mounted) {
         setState(() {
-          _userGadgets = gadgets ?? [];
+          _allGadgets = gadgets;
           _isLoading = false;
         });
       }
@@ -72,7 +73,7 @@ class _GadgetListModalState extends State<GadgetListModal> {
             ),
             const SizedBox(height: 25),
             Text(
-              'MES GADGETS ACTIFS',
+              'INVENTAIRE TACTIQUE',
               style: Theme.of(context).textTheme.labelLarge?.copyWith(
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
@@ -83,10 +84,10 @@ class _GadgetListModalState extends State<GadgetListModal> {
             const SizedBox(height: 35),
             if (_isLoading)
               const Center(child: CircularProgressIndicator(color: AppColors.primary))
-            else if (_userGadgets.isEmpty)
+            else if (_allGadgets.isEmpty)
               _buildEmptyState(context)
             else
-              _buildGadgetList(),
+              _buildGadgetGrid(),
           ],
         ),
       ),
@@ -98,41 +99,34 @@ class _GadgetListModalState extends State<GadgetListModal> {
       children: [
         const Icon(Icons.inventory_2_outlined, color: Colors.white10, size: 48),
         const SizedBox(height: 16),
-        const Text("AUCUN GADGET DANS L'INVENTAIRE", style: TextStyle(color: Colors.white24, fontSize: 12)),
-        const SizedBox(height: 24),
-        ElevatedButton(
-          onPressed: () {
-            Navigator.pop(context);
-            Navigator.pop(context);
-            navigationNotifier.value = 1;
-          },
-          style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-          child: const Text("ALLER À LA BOUTIQUE", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-        ),
+        const Text("AUCUN GADGET DANS LA BASE DE DONNÉES", style: TextStyle(color: Colors.white24, fontSize: 12)),
       ],
     );
   }
 
-  Widget _buildGadgetList() {
+  Widget _buildGadgetGrid() {
     return SizedBox(
-      height: 150,
+      height: 160,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
-        itemCount: _userGadgets.length,
+        itemCount: _allGadgets.length,
         itemBuilder: (context, index) {
-          final entry = _userGadgets[index];
-          final gadget = entry['gadget']; // SQLAlchemy relationship
-          final int count = entry['quantity'];
+          final gadget = _allGadgets[index];
+          final int count = gadget['quantity'] ?? 0;
+          final bool isOwned = count > 0;
 
           return Container(
             width: 110,
             margin: const EdgeInsets.symmetric(horizontal: 10),
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.4),
+              color: isOwned ? Colors.black.withValues(alpha: 0.4) : Colors.white.withValues(alpha: 0.03),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+              border: Border.all(
+                color: isOwned ? AppColors.primary.withValues(alpha: 0.4) : Colors.white10,
+                width: isOwned ? 1.5 : 1,
+              ),
             ),
             child: Stack(
               clipBehavior: Clip.none,
@@ -140,37 +134,55 @@ class _GadgetListModalState extends State<GadgetListModal> {
                 Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Image.asset(
-                      'assets/skins/${gadget['image_url']}',
-                      width: 40,
-                      height: 40,
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) => 
-                        const Icon(Icons.radar, color: AppColors.primary, size: 32),
+                    Opacity(
+                      opacity: isOwned ? 1.0 : 0.3,
+                      child: Image.asset(
+                        'assets/skins/${gadget['image_url']}',
+                        width: 40,
+                        height: 40,
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) => 
+                          Icon(Icons.radar, color: isOwned ? AppColors.primary : Colors.white24, size: 32),
+                      ),
                     ),
                     const SizedBox(height: 12),
                     Text(
                       gadget['name'],
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: isOwned ? Colors.white : Colors.white24, 
+                        fontSize: 10, 
+                        fontWeight: FontWeight.bold
+                      ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      "POSSÉDÉ",
-                      style: TextStyle(color: AppColors.primary.withValues(alpha: 0.6), fontSize: 9, fontWeight: FontWeight.w900),
-                    ),
+                    const SizedBox(height: 6),
+                    if (isOwned)
+                      Text(
+                        "DISPONIBLE",
+                        style: TextStyle(color: AppColors.primary.withValues(alpha: 0.6), fontSize: 8, fontWeight: FontWeight.w900),
+                      )
+                    else
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.pop(context);
+                          navigationNotifier.value = 1; // Redirection Boutique
+                        },
+                        child: const Icon(Icons.add_circle_outline, color: Colors.white24, size: 18),
+                      ),
                   ],
                 ),
-                Positioned(
-                  top: -5,
-                  right: -5,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
-                    child: Text('x$count', style: const TextStyle(color: Colors.black, fontSize: 8, fontWeight: FontWeight.bold)),
+                if (isOwned)
+                  Positioned(
+                    top: -5,
+                    right: -5,
+                    child: Container(
+                      padding: const EdgeInsets.all(5),
+                      decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+                      child: Text('$count', style: const TextStyle(color: Colors.black, fontSize: 9, fontWeight: FontWeight.bold)),
+                    ),
                   ),
-                ),
               ],
             ),
           );

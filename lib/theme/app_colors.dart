@@ -21,3 +21,7 @@ class AppColors {
   static const Color textPrimary = Colors.white;
   static const Color textSecondary = Color(0xB3FFFFFF); // 70% opacity white
 }
+
+extension ColorToHex on Color {
+  String toHex() => '#${(toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}';
+}

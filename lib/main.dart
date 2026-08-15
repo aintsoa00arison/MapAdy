@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'theme/app_theme.dart';
 import 'widgets/top_bar/top_bar.dart';
 import 'widgets/bottom_bar/bottom_bar.dart';
-import 'screens/mapady_screen.dart';
+import 'screens/map_conquest/map_conquest_screen.dart';
 import 'screens/shop_screen.dart';
 import 'screens/ranking/ranking_screen.dart';
 import 'screens/territory_screen.dart';
@@ -45,7 +45,7 @@ class _RootNavigationState extends State<RootNavigation> {
   Map<String, dynamic>? _userData;
 
   final List<Widget> _screens = [
-    const MapadyScreen(),
+    const MapConquestScreen(),
     const ShopScreen(),
     const RankingScreen(),
     const TerritoryScreen(),
@@ -110,22 +110,26 @@ class _RootNavigationState extends State<RootNavigation> {
                 children: _screens,
               ),
 
-              // Top Bar avec callback de rafraîchissement
-              if (!hideBars)
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  child: SafeArea(
-                    child: TopBar(
-                      username: _userData?['username'] ?? 'AGENT',
-                      gold: _userData?['gold'] ?? 0,
-                      avatarPath: _userData?['avatar'] ?? 'avatar_1.jpeg',
-                      onProfileReturn: _refreshUserData,
-                    ),
+              // Top Bar : TOUJOURS visible, avec bouton retour en mode conquête
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: SafeArea(
+                  child: TopBar(
+                    username: _userData?['username'] ?? 'AGENT',
+                    gold: _userData?['gold'] ?? 0,
+                    avatarPath: _userData?['avatar'] ?? 'avatar_1.jpeg',
+                    onProfileReturn: _refreshUserData,
+                    showBackButton: hideBars,
+                    onBack: () {
+                      hideBarsNotifier.value = false;
+                    },
                   ),
                 ),
+              ),
 
+              // Seule la Bottom Bar disparaît
               if (!hideBars)
                 Positioned(
                   bottom: 0,

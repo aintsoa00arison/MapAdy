@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr
-from typing import Optional
+from typing import Optional, List
 from models import RankTitleEnum, PalierTopographique
 
 class UserBase(BaseModel):
@@ -25,6 +25,21 @@ class UserResponse(UserBase):
     class Config:
         from_attributes = True
 
+class GadgetShortResponse(BaseModel):
+    id: int
+    name: str
+    image_url: str
+
+    class Config:
+        from_attributes = True
+
+class ActiveDefenseResponse(BaseModel):
+    id: int
+    gadget: GadgetShortResponse
+
+    class Config:
+        from_attributes = True
+
 class GameBaseResponse(BaseModel):
     id: int
     name: str
@@ -35,6 +50,7 @@ class GameBaseResponse(BaseModel):
     conquest_radius_m: float
     points_value: int
     owner_id: Optional[int]
+    active_defenses: List[ActiveDefenseResponse] = []
 
     class Config:
         from_attributes = True

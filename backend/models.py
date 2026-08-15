@@ -3,6 +3,7 @@ from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, Enum as SQL
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from database import Base
+from datetime import datetime, timedelta
 
 class RankTitleEnum(str, enum.Enum):
     ROOKIE = "ROOKIE"
@@ -16,6 +17,10 @@ class PalierTopographique(str, enum.Enum):
     HAUTE = "HAUTE"
     MOYENNE = "MOYENNE"
     BASSE = "BASSE"
+
+class GadgetTypeEnum(str, enum.Enum):
+    DEFENSE = "DEFENSE"
+    ATTAQUE = "ATTAQUE"
 
 class User(Base):
     __tablename__ = "users"
@@ -45,6 +50,7 @@ class Gadget(Base):
     description = Column(String)
     price = Column(Integer, nullable=False)
     image_url = Column(String)
+    type = Column(SQLEnum(GadgetTypeEnum), default=GadgetTypeEnum.DEFENSE)
 
 class AvatarItem(Base):
     __tablename__ = "avatar_items"
@@ -84,7 +90,7 @@ class QuizQuestion(Base):
     theme = Column(String, nullable=False)
     text = Column(String, nullable=False)
     answers = Column(JSON, nullable=False)
-    hints = Column(JSON, nullable=True) # List of 2 hints: ["Hint 1", "Hint 2"]
+    hints = Column(JSON, nullable=True)
     difficulty = Column(String, default="medium")
 
 class QuizHistory(Base):
@@ -113,3 +119,20 @@ class GameBase(Base):
 
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     owner = relationship("User")
+
+    # Lien vers les défenses actives
+    active_defenses = relationship("ActiveDefense", back_populates="base")
+
+class ActiveDefense(Base):
+    __tablename__ = "active_defenses"
+
+    id = Column(Integer, primary_key=True, index=True)
+    base_id = Column(Integer, ForeignKey("game_bases.id"))
+    gadget_id = Column(Integer, ForeignKey("gadgets.id"))
+
+    activated_at = Column(DateTime, default=func.now())
+    # Par défaut, une défense dure 24 heures
+    expires_at = Column(DateTime, default=lambda: datetime.now() + timedelta(hours=24))
+
+    base = relationship("GameBase", back_populates="active_defenses")
+    gadget = relationship("Gadget")

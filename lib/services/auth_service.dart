@@ -1,9 +1,18 @@
 import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'api_client.dart';
 import 'endpoints.dart';
+
+class UserSession {
+  static final ValueNotifier<int> goldNotifier = ValueNotifier<int>(0);
+  
+  static void updateGold(int newGold) {
+    goldNotifier.value = newGold;
+  }
+}
 
 class AuthService {
   static const String userKey = "mapady_user_session";
@@ -17,12 +26,17 @@ class AuthService {
   Future<Map<String, dynamic>?> getSavedSession() async {
     final prefs = await SharedPreferences.getInstance();
     final String? userJson = prefs.getString(userKey);
-    if (userJson != null) return jsonDecode(userJson);
+    if (userJson != null) {
+      final user = jsonDecode(userJson);
+      UserSession.updateGold(user['gold'] ?? 0);
+      return user;
+    }
     return null;
   }
 
   Future<Map<String, dynamic>?> loginWithGoogle() async {
     try {
+      await _googleSignIn.signOut();
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       if (googleUser == null) return null;
 
@@ -33,14 +47,17 @@ class AuthService {
         await _saveSession(userData);
         return userData;
       }
+      await _googleSignIn.signOut();
       return null;
     } catch (e) {
+      await _googleSignIn.signOut();
       return null;
     }
   }
 
   Future<Map<String, dynamic>?> registerWithGoogle(String username) async {
     try {
+      await _googleSignIn.signOut();
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       if (googleUser == null) return null;
 
@@ -54,8 +71,10 @@ class AuthService {
         await _saveSession(userData);
         return userData;
       }
+      await _googleSignIn.signOut();
       return null;
     } catch (e) {
+      await _googleSignIn.signOut();
       return null;
     }
   }
@@ -63,16 +82,16 @@ class AuthService {
   Future<void> _saveSession(Map<String, dynamic> userData) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(userKey, jsonEncode(userData));
+    UserSession.updateGold(userData['gold'] ?? 0);
   }
 
   Future<void> logout() async {
     try {
       await _googleSignIn.signOut();
-      await _apiClient.post(Endpoints.logout, {});
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(userKey);
     } catch (e) {
-      // Logout failure
+      debugPrint("Erreur lors de la déconnexion: $e");
     }
   }
 }

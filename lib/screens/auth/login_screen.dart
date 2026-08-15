@@ -92,19 +92,22 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _buildLogo() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+    return Column(
       children: [
-        const Icon(Icons.terminal, color: AppColors.primary, size: 40),
-        const SizedBox(width: 10),
+        Image.asset(
+          'assets/images/logo_mapady.png',
+          height: 120,
+          errorBuilder: (context, error, stackTrace) => const Icon(Icons.terminal, color: AppColors.primary, size: 80),
+        ),
+        const SizedBox(height: 10),
         const Text(
           'MAPADY',
           style: TextStyle(
             color: AppColors.primary,
-            fontSize: 48,
+            fontSize: 32,
             fontWeight: FontWeight.w900,
             fontFamily: 'Anybody',
-            letterSpacing: -2,
+            letterSpacing: 4,
           ),
         ),
       ],
