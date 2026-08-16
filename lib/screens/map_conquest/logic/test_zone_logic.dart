@@ -2,26 +2,27 @@ import 'package:maplibre_gl/maplibre_gl.dart';
 import 'dart:math' as math;
 
 class TestZoneLogic {
-  static Map<String, dynamic>? getNearbyTestBase(LatLng? currentLocation, List<Map<String, dynamic>> realBases) {
-    if (currentLocation == null) return null;
+  static Map<String, dynamic>? getNearbyBase(LatLng? currentLocation, List<Map<String, dynamic>> realBases) {
+    if (currentLocation == null || realBases.isEmpty) return null;
 
-    // Vérifier d'abord s'il y a une vraie base à proximité
+    Map<String, dynamic>? nearest;
+    double minDistance = double.infinity;
+
     for (var b in realBases) {
       double dist = calculateDistance(currentLocation, LatLng(b['latitude'], b['longitude']));
-      if (dist <= (b['conquest_radius_m'] as num).toDouble()) {
-        return b;
+      if (dist < minDistance) {
+        minDistance = dist;
+        nearest = b;
       }
     }
 
-    // Sinon, créer une zone de test virtuelle à la position actuelle
-    return {
-      "id": 0, 
-      "name": "ZONE DE TEST LOCALE",
-      "latitude": currentLocation.latitude,
-      "longitude": currentLocation.longitude,
-      "conquest_radius_m": 150.0,
-      "is_test": true
-    };
+    if (nearest != null) {
+      // On injecte la distance calculée pour l'affichage
+      nearest['current_distance'] = minDistance;
+      return nearest;
+    }
+
+    return null;
   }
 
   static double calculateDistance(LatLng p1, LatLng p2) {

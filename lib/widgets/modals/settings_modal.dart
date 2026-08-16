@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../theme/app_colors.dart';
+import '../../services/audio_service.dart';
 
 class SettingsModal extends StatefulWidget {
   const SettingsModal({super.key});
@@ -19,10 +20,17 @@ class SettingsModal extends StatefulWidget {
 }
 
 class _SettingsModalState extends State<SettingsModal> {
-  double _masterVolume = 0.8;
-  double _musicVolume = 0.65;
+  late double _musicVolume;
+  late double _sfxVolume;
   bool _notifications = true;
   bool _haptic = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _musicVolume = AudioService().musicVolume;
+    _sfxVolume = AudioService().sfxVolume;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -50,8 +58,14 @@ class _SettingsModalState extends State<SettingsModal> {
                       title: 'CONTROLE AUDIO',
                       icon: Icons.volume_up_outlined,
                       children: [
-                        _buildSliderRow('Volume Principal', _masterVolume, (v) => setState(() => _masterVolume = v)),
-                        _buildSliderRow('Musique', _musicVolume, (v) => setState(() => _musicVolume = v)),
+                        _buildSliderRow('Musique de fond', _musicVolume, (v) {
+                          setState(() => _musicVolume = v);
+                          AudioService().setMusicVolume(v);
+                        }),
+                        _buildSliderRow('Effets Sonores', _sfxVolume, (v) {
+                          setState(() => _sfxVolume = v);
+                          AudioService().setSfxVolume(v);
+                        }),
                       ],
                     ),
                     const SizedBox(height: 24),
@@ -152,6 +166,8 @@ class _SettingsModalState extends State<SettingsModal> {
           ),
           Slider(
             value: value,
+            activeColor: AppColors.primary,
+            inactiveColor: Colors.white10,
             onChanged: onChanged,
           ),
         ],
@@ -168,6 +184,7 @@ class _SettingsModalState extends State<SettingsModal> {
           Text(label, style: const TextStyle(color: Colors.white, fontSize: 14)),
           Switch(
             value: value,
+            activeColor: AppColors.primary,
             onChanged: onChanged,
           ),
         ],

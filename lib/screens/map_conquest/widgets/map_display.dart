@@ -33,8 +33,10 @@ class MapDisplay extends StatelessWidget {
       onUserLocationUpdated: onLocationUpdated,
       initialCameraPosition: const CameraPosition(target: LatLng(-21.4536, 47.0833), zoom: 13.5),
       styleString: styleString,
-      myLocationEnabled: false, // Désactivé pour ne pas avoir de "double" point
+      // Réactivation du point bleu original
+      myLocationEnabled: true, 
       myLocationRenderMode: MyLocationRenderMode.normal,
+      myLocationTrackingMode: MyLocationTrackingMode.none,
       compassViewPosition: CompassViewPosition.topRight,
       compassViewMargins: const math.Point(20, 180),
     );

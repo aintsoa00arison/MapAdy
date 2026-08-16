@@ -11,11 +11,12 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        isCoreLibraryDesugaringEnabled = true // Enable desugaring
     }
 
     defaultConfig {
         applicationId = "com.example.untitled"
-        minSdk = flutter.minSdkVersion // Required for MapLibre
+        minSdk = flutter.minSdkVersion // Required for MapLibre and local notifications
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -36,4 +37,8 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
 }

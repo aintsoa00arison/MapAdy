@@ -11,9 +11,7 @@ import '../../services/user_service.dart';
 import '../../logic/debug_conquest_controller.dart';
 import '../quiz/quiz_screen.dart';
 import 'widgets/map_display.dart';
-import 'widgets/custom_location_pin.dart';
 import 'widgets/normal_overlay.dart';
-import 'widgets/conquest_hud.dart';
 import 'widgets/debug_defense_selector.dart';
 import 'logic/test_zone_logic.dart';
 
@@ -33,13 +31,15 @@ class _MapConquestScreenState extends State<MapConquestScreen> with TickerProvid
   bool _isConquestMode = false;
   Map<String, dynamic>? _userData;
   LatLng? _currentLocation;
-  Offset _userMarkerOffset = Offset.zero;
   final loc.Location _locationService = loc.Location();
+  bool _isFollowingUser = true; 
   
-  Map<String, dynamic>? _nearbyBase;
+  Map<String, dynamic>? _nearestBase;
+  bool _isInRange = false;
 
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
+  late AnimationController _btnController;
 
   @override
   void initState() {
@@ -49,7 +49,7 @@ class _MapConquestScreenState extends State<MapConquestScreen> with TickerProvid
     _initLocation();
     _pulseController = AnimationController(vsync: this, duration: const Duration(seconds: 1))..repeat(reverse: true);
     _pulseAnimation = Tween<double>(begin: 0.9, end: 1.1).animate(_pulseController);
-    
+    _btnController = AnimationController(vsync: this, duration: const Duration(milliseconds: 400));
     hideBarsNotifier.addListener(_onToggleBars);
   }
 
@@ -57,68 +57,60 @@ class _MapConquestScreenState extends State<MapConquestScreen> with TickerProvid
     if (mounted) {
       setState(() {
         _isConquestMode = hideBarsNotifier.value;
+        if (_isConquestMode) _isFollowingUser = true;
       });
-      _checkNearbyBases(); // Force le rafraîchissement immédiat des boutons
+      _checkNearbyBases();
       if (_isConquestMode && _currentLocation != null) {
         _mapController?.animateCamera(CameraUpdate.newLatLngZoom(_currentLocation!, 16.5));
       }
     }
   }
 
-  @override
-  void dispose() {
-    hideBarsNotifier.removeListener(_onToggleBars);
-    _pulseController.dispose();
-    super.dispose();
-  }
-
   Future<void> _initLocation() async {
     try {
       bool serviceEnabled = await _locationService.serviceEnabled();
-      if (!serviceEnabled) {
-        serviceEnabled = await _locationService.requestService();
-        if (!serviceEnabled) return;
-      }
+      if (!serviceEnabled) serviceEnabled = await _locationService.requestService();
 
       loc.PermissionStatus permission = await _locationService.hasPermission();
-      if (permission == loc.PermissionStatus.denied) {
-        permission = await _locationService.requestPermission();
-        if (permission != loc.PermissionStatus.granted) return;
-      }
+      if (permission == loc.PermissionStatus.denied) permission = await _locationService.requestPermission();
 
-      // Vitesse maximale pour les tests
-      await _locationService.changeSettings(accuracy: loc.LocationAccuracy.high, interval: 1000, distanceFilter: 1);
+      await _locationService.changeSettings(accuracy: loc.LocationAccuracy.high, interval: 1000, distanceFilter: 0);
 
       _locationService.onLocationChanged.listen((data) {
         if (mounted && data.latitude != null) {
-          setState(() {
-            _currentLocation = LatLng(data.latitude!, data.longitude!);
-          });
-          _updateMarkerPosition();
+          final newPos = LatLng(data.latitude!, data.longitude!);
+          setState(() => _currentLocation = newPos);
           _checkNearbyBases();
+          if (_isFollowingUser && _mapController != null) {
+            _mapController!.animateCamera(CameraUpdate.newLatLng(newPos));
+          }
         }
       });
       
-      // Position initiale forcée si possible
       final initial = await _locationService.getLocation();
       if (initial.latitude != null) {
-         setState(() {
-            _currentLocation = LatLng(initial.latitude!, initial.longitude!);
-          });
-          _checkNearbyBases();
+         setState(() => _currentLocation = LatLng(initial.latitude!, initial.longitude!));
+         _checkNearbyBases();
+         _mapController?.animateCamera(CameraUpdate.newLatLngZoom(_currentLocation!, 15.0));
       }
     } catch (e) {}
   }
 
   void _checkNearbyBases() {
-    final base = TestZoneLogic.getNearbyTestBase(_currentLocation, _bases);
-    if (mounted) setState(() => _nearbyBase = base);
-  }
-
-  void _updateMarkerPosition() async {
-    if (_mapController == null || _currentLocation == null) return;
-    final pos = await _mapController!.toScreenLocation(_currentLocation!);
-    if (mounted) setState(() => _userMarkerOffset = Offset(pos.x.toDouble(), pos.y.toDouble()));
+    final base = TestZoneLogic.getNearbyBase(_currentLocation, _bases);
+    if (mounted) {
+      setState(() {
+        _nearestBase = base;
+        if (base != null) {
+          double dist = base['current_distance'] ?? 999.0;
+          double radius = (base['conquest_radius_m'] as num).toDouble();
+          _isInRange = dist <= radius;
+        } else {
+          _isInRange = false;
+        }
+      });
+      if (_isInRange) _btnController.forward(); else _btnController.reverse();
+    }
   }
 
   Future<void> _loadUserData() async {
@@ -127,87 +119,65 @@ class _MapConquestScreenState extends State<MapConquestScreen> with TickerProvid
     if (userJson != null) {
       final localUser = jsonDecode(userJson);
       final updatedUser = await UserService().getProfile(localUser['id']);
-      if (updatedUser != null && mounted) {
-        setState(() => _userData = updatedUser);
-      } else {
-        setState(() => _userData = localUser);
-      }
+      setState(() => _userData = updatedUser ?? localUser);
     }
   }
 
   Future<void> _fetchBases() async {
-    _bases = await TerritoryService().getAllBases();
-    _displayBases();
+    try {
+      final fetched = await TerritoryService().getAllBases();
+      print("DEBUG : ${fetched.length} bases reçues.");
+      if (mounted) {
+        setState(() {
+          _bases = fetched;
+        });
+        // Si le style est déjà prêt, on affiche direct
+        if (_isStyleLoaded) _displayBases();
+      }
+    } catch (e) {
+      print("DEBUG ERROR : Echec fetch bases: $e");
+    }
   }
 
   void _displayBases() {
-    if (_mapController == null || _bases.isEmpty || !_isStyleLoaded) return;
+    if (_mapController == null || _bases.isEmpty || !_isStyleLoaded) {
+      print("DEBUG : Affichage annulé (Controller: ${_mapController != null}, Bases: ${_bases.length}, Style: $_isStyleLoaded)");
+      return;
+    }
+    
     _mapController!.clearFills();
     _mapController!.clearCircles();
+
     for (var b in _bases) {
       final center = LatLng(b['latitude'], b['longitude']);
+      final isOwned = b['owner_id'] != null;
+      final zoneColor = isOwned ? AppColors.territoryOwned : AppColors.primary;
+
+      // Dessiner le polygone (Périmètre)
       _mapController!.addFill(FillOptions(
         geometry: [createPentagonPoints(center, (b['conquest_radius_m'] as num).toDouble())],
-        fillColor: b['owner_id'] != null ? Colors.green.toHex() : AppColors.primary.toHex(), 
-        fillOpacity: 0.15,
+        fillColor: zoneColor.toHex(), 
+        fillOpacity: isOwned ? 0.35 : 0.2, // Opacité augmentée
+        fillOutlineColor: zoneColor.toHex(),
       ));
-      _mapController!.addCircle(CircleOptions(geometry: center, circleRadius: 6.0, circleColor: AppColors.secondary.toHex()));
+
+      // Dessiner le point central (Balise)
+      _mapController!.addCircle(CircleOptions(
+        geometry: center, 
+        circleRadius: 8.0, // Plus gros
+        circleColor: zoneColor.toHex(),
+        circleOpacity: 1.0,
+      ));
     }
+    print("DEBUG : ${_bases.length} bases affichées sur la carte.");
   }
 
   void _startHackSession() {
-    if (_nearbyBase == null) return;
-
-    if (_nearbyBase!['id'] == 0) {
-      DebugDefenseSelector.show(context, (type) {
-        final debugController = DebugConquestController();
-        debugController.activeTestDefense = type;
-
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => QuizScreen(
-              baseId: 0,
-              baseName: "ZONE DE TEST",
-              debugEffects: debugController.getActiveEffects(),
-            ),
-          ),
-        ).then((_) => _loadUserData());
-      });
-    } else {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => QuizScreen(
-            baseId: _nearbyBase!['id'],
-            baseName: _nearbyBase!['name'],
-          ),
-        ),
-      ).then((_) => _fetchBases());
-    }
-  }
-
-  void _startBattleSession() {
-    if (_nearbyBase == null) return;
-    
-    // Simulation d'un adversaire
-    final dummyOpponent = {
-      "id": 999,
-      "username": "X-SHADOW",
-      "avatar": "avatar_7.jpeg",
-      "gold": 5000
-    };
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => QuizBattleScreen(
-          baseId: _nearbyBase!['id'] ?? 0,
-          baseName: _nearbyBase!['name'] ?? "ZONE INCONNUE",
-          opponentData: dummyOpponent,
-        ),
-      ),
-    ).then((_) => _loadUserData());
+    if (_nearestBase == null || !_isInRange) return;
+    Navigator.push(context, MaterialPageRoute(builder: (context) => QuizScreen(baseId: _nearestBase!['id'], baseName: _nearestBase!['name']))).then((_) {
+      _fetchBases();
+      _loadUserData();
+    });
   }
 
   @override
@@ -216,24 +186,26 @@ class _MapConquestScreenState extends State<MapConquestScreen> with TickerProvid
       backgroundColor: AppColors.background,
       body: Stack(
         children: [
-          MapDisplay(
-            controller: _mapController, bases: _bases, isStyleLoaded: _isStyleLoaded,
-            onMapCreated: (c) => _mapController = c,
-            onStyleLoaded: () { _isStyleLoaded = true; _displayBases(); _updateMarkerPosition(); },
-            onCameraMove: _updateMarkerPosition,
-            onLocationUpdated: (loc) {
-               _currentLocation = loc.position;
-               _updateMarkerPosition();
-               _checkNearbyBases();
-            },
-            styleString: "https://api.maptiler.com/maps/019ff69e-f86b-71eb-9174-7747851625cf/style.json?key=unUFY9uFBzpXNISNkIyg",
+          Listener(
+            onPointerDown: (_) { if (_isFollowingUser) setState(() => _isFollowingUser = false); },
+            behavior: HitTestBehavior.translucent,
+            child: MapDisplay(
+              controller: _mapController, bases: _bases, isStyleLoaded: _isStyleLoaded,
+              onMapCreated: (c) => _mapController = c,
+              onStyleLoaded: () { 
+                print("DEBUG : Style de carte chargé.");
+                _isStyleLoaded = true; 
+                _displayBases(); 
+              },
+              onCameraMove: () {}, onLocationUpdated: (_) {}, 
+              styleString: "https://api.maptiler.com/maps/019ff69e-f86b-71eb-9174-7747851625cf/style.json?key=unUFY9uFBzpXNISNkIyg",
+            ),
           ),
           
-          if (_currentLocation != null && _userMarkerOffset != Offset.zero)
-            CustomLocationPin(offset: _userMarkerOffset, animation: _pulseAnimation, avatar: _userData?['avatar']),
-          
           if (_isConquestMode) ...[
-            if (_nearbyBase != null) _buildActionButtons(),
+            _buildRecenterButton(),
+            _buildDistanceHUD(),
+            if (_isInRange) _buildHackButton(),
           ] else
             NormalOverlay(animation: _pulseAnimation, onTap: () => hideBarsNotifier.value = true),
         ],
@@ -241,43 +213,21 @@ class _MapConquestScreenState extends State<MapConquestScreen> with TickerProvid
     );
   }
 
-  Widget _buildActionButtons() {
-    return Positioned(
-      bottom: 60,
-      left: 30,
-      right: 30,
-      child: Column(
-        children: [
-          GestureDetector(
-            onTap: _startHackSession,
-            child: _buildButton("HACKER ZONE", Colors.greenAccent),
-          ),
-          const SizedBox(height: 12),
-          GestureDetector(
-            onTap: _startBattleSession,
-            child: _buildButton("SIMULER BATTLE", AppColors.secondary),
-          ),
-        ],
-      ),
-    );
+  Widget _buildDistanceHUD() {
+    String message = "SCAN RÉSEAU EN COURS...";
+    if (_bases.isEmpty) message = "ERREEUR : AUCUNE BASE DÉTECTÉE";
+    else if (_nearestBase != null) {
+      double dist = _nearestBase!['current_distance'] ?? 0.0;
+      message = dist > 1000 ? "CIBLE À ${(dist/1000).toStringAsFixed(1)} KM" : "CIBLE À ${dist.toInt()} M";
+    }
+    return Positioned(bottom: 110, left: 30, right: 30, child: Container(padding: const EdgeInsets.symmetric(vertical: 8), decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.7), borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.primary.withValues(alpha: 0.3))), child: Text(message, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.primary, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1))));
   }
 
-  Widget _buildButton(String label, Color color) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.9),
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: Colors.white, width: 2),
-        boxShadow: [BoxShadow(color: color.withValues(alpha: 0.6), blurRadius: 15)],
-      ),
-      child: Center(
-        child: Text(
-          label,
-          style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 14, letterSpacing: 2),
-        ),
-      ),
-    );
+  Widget _buildRecenterButton() {
+    return Positioned(right: 20, bottom: 160, child: FloatingActionButton(mini: true, backgroundColor: AppColors.background.withValues(alpha: 0.8), onPressed: () { setState(() => _isFollowingUser = true); if (_currentLocation != null) _mapController?.animateCamera(CameraUpdate.newLatLng(_currentLocation!)); }, child: Icon(Icons.my_location, color: _isFollowingUser ? AppColors.primary : Colors.white54)));
+  }
+
+  Widget _buildHackButton() {
+    return Positioned(bottom: 40, left: 30, right: 30, child: FadeTransition(opacity: _btnController, child: ScaleTransition(scale: _btnController, child: GestureDetector(onTap: _startHackSession, child: Container(width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 18), decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(15), border: Border.all(color: AppColors.primary, width: 2), boxShadow: [BoxShadow(color: AppColors.primary.withValues(alpha: 0.5), blurRadius: 15)]), child: Center(child: Text("HACKER ${_nearestBase!['name']}", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 14, letterSpacing: 2))))))));
   }
 }

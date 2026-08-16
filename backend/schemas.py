@@ -50,6 +50,8 @@ class GameBaseResponse(BaseModel):
     conquest_radius_m: float
     points_value: int
     owner_id: Optional[int]
+    owner_name: Optional[str] = None
+    owner_avatar: Optional[str] = None
     active_defenses: List[ActiveDefenseResponse] = []
 
     class Config:

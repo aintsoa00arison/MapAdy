@@ -8,13 +8,13 @@ class UserRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_by_id(self, user_id: int):
+    def get_user(self, user_id: int):
         return self.db.query(User).filter(User.id == user_id).first()
 
-    def get_by_email(self, email: str):
+    def get_user_by_email(self, email: str):
         return self.db.query(User).filter(User.email == email).first()
 
-    def create(self, user_data: UserCreate):
+    def create_user(self, user_data: UserCreate):
         current_date = datetime.now().strftime("%b %Y")
         new_user = User(
             username=user_data.username,
@@ -31,7 +31,7 @@ class UserRepository:
         return new_user
 
     def update_email(self, user_id: int, new_email: str):
-        user = self.get_by_id(user_id)
+        user = self.get_user(user_id)
         if user:
             user.email = new_email
             self.db.commit()
@@ -39,31 +39,20 @@ class UserRepository:
         return user
 
     def update_avatar(self, user_id: int, avatar_url: str):
-        user = self.get_by_id(user_id)
+        user = self.get_user(user_id)
         if not user:
             return None
 
-        # 1. Update the User record
         user.avatar = avatar_url
-
-        # 2. Update is_equipped in UserAvatar table if it exists
-        # Note: avatar_url might be "avatar_1.jpeg"
         avatar_item = self.db.query(AvatarItem).filter(AvatarItem.image_url == avatar_url).first()
         if avatar_item:
-            # Set all to false for this user
             self.db.query(UserAvatar).filter(UserAvatar.user_id == user_id).update({"is_equipped": False})
-
-            # Set target to true
             user_avatar = self.db.query(UserAvatar).filter(
                 UserAvatar.user_id == user_id,
                 UserAvatar.avatar_item_id == avatar_item.id
             ).first()
             if user_avatar:
                 user_avatar.is_equipped = True
-            else:
-                # If it's a default avatar not in user_avatars, we don't strictly need a record
-                # but if it's in AvatarItem we should have it.
-                pass
 
         self.db.commit()
         self.db.refresh(user)
@@ -71,11 +60,10 @@ class UserRepository:
 
     def get_owned_avatars(self, user_id: int):
         owned = self.db.query(UserAvatar).filter(UserAvatar.user_id == user_id).all()
-        # Return list of avatar image URLs
         return [ua.avatar_item.image_url for ua in owned]
 
     def purchase_item(self, user_id: int, item_id: int, category: str):
-        user = self.get_by_id(user_id)
+        user = self.get_user(user_id)
         if not user:
             raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
 
@@ -88,7 +76,6 @@ class UserRepository:
                 raise HTTPException(status_code=400, detail="Crédits Cyber insuffisants")
 
             user.gold -= item.price
-
             user_gadget = self.db.query(UserGadget).filter(
                 UserGadget.user_id == user_id,
                 UserGadget.gadget_id == item_id

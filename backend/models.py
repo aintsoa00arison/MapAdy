@@ -136,3 +136,11 @@ class ActiveDefense(Base):
 
     base = relationship("GameBase", back_populates="active_defenses")
     gadget = relationship("Gadget")
+
+class ActiveAgent(Base):
+    __tablename__ = "active_agents"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    base_id = Column(Integer, ForeignKey("game_bases.id"))
+    last_seen = Column(DateTime, default=func.now(), onupdate=func.now())

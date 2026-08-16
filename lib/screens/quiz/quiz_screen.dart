@@ -14,6 +14,8 @@ import '../../widgets/cyber_toast.dart';
 import '../map_conquest/widgets/map_display.dart';
 import '../../widgets/effects/glitch_effect.dart';
 
+import '../../services/audio_service.dart';
+
 class QuizScreen extends StatefulWidget {
   final int? baseId; 
   final String? baseName;
@@ -122,12 +124,19 @@ class _QuizScreenState extends State<QuizScreen> {
     final isCorrect = answers[index]['is_correct'] as bool;
 
     if (!isCorrect && _safeDropCharges > 0 && !_ghostKeyActive) {
+      AudioService().playWrong(); // Son d'erreur
       setState(() {
         _safeDropCharges--;
         _eliminatedIndices.add(index);
       });
       CyberToast.show(context, "BOUCLIER SAFEDROP ACTIVÉ ! -1 CHARGE");
       return;
+    }
+
+    if (isCorrect) {
+      AudioService().playCorrect(); // Son de succès
+    } else {
+      AudioService().playWrong(); // Son d'erreur
     }
 
     setState(() {
@@ -154,9 +163,10 @@ class _QuizScreenState extends State<QuizScreen> {
       UserSession.updateGold(response['gold']);
     }
 
-    // FROST TRAP DETECTION : Arrêt immédiat si activé sur la base et erreur commise
+    // FROST TRAP DETECTION
     if (!_ghostKeyActive && response != null && response['stop_quiz'] == true) {
       _timer?.cancel();
+      AudioService().playGameOver(); // Son Game Over
       _showFrostTrapDialog(response['status'] ?? "PIÈGE ACTIVÉ");
       return;
     }
@@ -229,6 +239,12 @@ class _QuizScreenState extends State<QuizScreen> {
   void _endQuiz({bool timeout = false}) {
     _timer?.cancel();
     bool isConquestSuccess = (widget.baseId != null || _ghostKeyActive) && _correctAnswersCount == _totalQuestions;
+
+    if (isConquestSuccess) {
+      AudioService().playCorrect();
+    } else if (widget.baseId != null) {
+      AudioService().playGameOver();
+    }
 
     showDialog(
       context: context,

@@ -1,66 +1,83 @@
 from database import SessionLocal, engine, Base
 import models
-from models import AvatarItem, Gadget, QuizQuestion, GameBase, PalierTopographique, GadgetTypeEnum
+from models import AvatarItem, Gadget, QuizQuestion, GameBase, PalierTopographique, GadgetTypeEnum, ActiveDefense, QuizHistory
 import random
-import math
 
 def seed_database():
-    print("--- RÉINITIALISATION COMPLÈTE (V3.5 - 100 QUESTIONS TECHNIQUES + SECTEURS) ---")
-    Base.metadata.drop_all(bind=engine)
-    Base.metadata.create_all(bind=engine)
+    print("--- RESTAURATION TOTALE DU SYSTÈME (V3.7 - FULL DATA) ---")
     db = SessionLocal()
 
     try:
-        # 1. Avatars
-        db.add(AvatarItem(name="Agent Standard", description="Avatar de base.", image_url="avatar_default.jpeg", price=0))
+        print("Nettoyage des anciennes données (Hors Utilisateurs)...")
+        db.query(ActiveDefense).delete()
+        db.query(GameBase).delete()
+        db.query(QuizQuestion).delete()
+        db.query(Gadget).delete()
+        db.query(AvatarItem).delete()
+
+        # 1. AVATARS (10 + Standard)
+        print("Déploiement des 11 Profils d'Agents...")
+        db.add(AvatarItem(id=1, name="Agent Standard", description="Avatar de base.", image_url="avatar_default.jpeg", price=0))
         avatars = [
-            AvatarItem(name="Neon Scavenger", description="Influence : +2s durée GlitchScreen.", image_url="avatar_1.jpeg", price=500),
-            AvatarItem(name="Glitch Vision", description="Influence : Révèle niveau défense IntelScan.", image_url="avatar_2.jpeg", price=750),
-            AvatarItem(name="Midnight Slice", description="Influence : 50% remboursement SafeDrop.", image_url="avatar_3.jpeg", price=400),
-            AvatarItem(name="Rain Stalker", description="Influence : 100% esquive GhostKey.", image_url="avatar_4.jpeg", price=900),
-            AvatarItem(name="Convenience Hacker", description="Influence : +20% gold DrainCash.", image_url="avatar_5.jpeg", price=600),
-            AvatarItem(name="Insomnia Netrunner", description="Influence : -50% cooldown Overheat.", image_url="avatar_6.jpeg", price=850),
-            AvatarItem(name="Chain-Skull", description="Influence : 3ème barrière IronTwin.", image_url="avatar_7.jpeg", price=1500),
-            AvatarItem(name="Matrix Puppet", description="Influence : +2s immobilisation IceLock.", image_url="avatar_8.jpeg", price=1100),
-            AvatarItem(name="Sicko Flex", description="Influence : -15% prix gadgets attaque.", image_url="avatar_9.jpeg", price=2000),
-            AvatarItem(name="Shadow Anonymous", description="Influence : Pièges invisibles (Stealth).", image_url="avatar_10.jpeg", price=1250),
+            AvatarItem(id=2, name="Neon Scavenger", description="Influence : +2s durée GlitchScreen.", image_url="avatar_1.jpeg", price=500),
+            AvatarItem(id=3, name="Glitch Vision", description="Influence : Révèle niveau défense IntelScan.", image_url="avatar_2.jpeg", price=750),
+            AvatarItem(id=4, name="Midnight Slice", description="Influence : 50% remboursement SafeDrop.", image_url="avatar_3.jpeg", price=400),
+            AvatarItem(id=5, name="Rain Stalker", description="Influence : 100% esquive GhostKey.", image_url="avatar_4.jpeg", price=900),
+            AvatarItem(id=6, name="Convenience Hacker", description="Influence : +20% gold DrainCash.", image_url="avatar_5.jpeg", price=600),
+            AvatarItem(id=7, name="Insomnia Netrunner", description="Influence : -50% cooldown Overheat.", image_url="avatar_6.jpeg", price=850),
+            AvatarItem(id=8, name="Chain-Skull", description="Influence : 3ème barrière IronTwin.", image_url="avatar_7.jpeg", price=1500),
+            AvatarItem(id=9, name="Matrix Puppet", description="Influence : +2s immobilisation IceLock.", image_url="avatar_8.jpeg", price=1100),
+            AvatarItem(id=10, name="Sicko Flex", description="Influence : -15% prix gadgets attaque.", image_url="avatar_9.jpeg", price=2000),
+            AvatarItem(id=11, name="Shadow Anonymous", description="Influence : Pièges invisibles (Stealth).", image_url="avatar_10.jpeg", price=1250),
         ]
         db.add_all(avatars)
 
-        # 2. Gadgets avec Types
+        # 2. GADGETS (9 Types)
+        print("Installation des protocoles de combat...")
         gadgets = [
-            Gadget(name="IronTwin", description="Double barrière de protection.", price=450, image_url="IronTwin.jpeg", type=GadgetTypeEnum.DEFENSE),
-            Gadget(name="GhostKey", description="Permet de traverser les barrières.", price=500, image_url="GhostKey.jpeg", type=GadgetTypeEnum.DEFENSE),
-            Gadget(name="SafeDrop", description="Bouclier anti-échec.", price=600, image_url="SafeDrop.jpeg", type=GadgetTypeEnum.DEFENSE),
-            Gadget(name="Cyberspy", description="Scanne le type de question.", price=250, image_url="Cyberspy.jpeg", type=GadgetTypeEnum.DEFENSE),
-            Gadget(name="floral", description="Gadget bonus mystère.", price=200, image_url="floral.jpeg", type=GadgetTypeEnum.DEFENSE),
-            Gadget(name="GlitchScreen", description="Brouille le texte pendant 3s.", price=300, image_url="GlitchScreen.jpeg", type=GadgetTypeEnum.ATTAQUE),
-            Gadget(name="DrainCash", description="Vole les points en cas d'erreur.", price=400, image_url="DrainCash.jpeg", type=GadgetTypeEnum.ATTAQUE),
-            Gadget(name="FrostTrap", description="Gèle l'adversaire.", price=350, image_url="FrostTrap.jpeg", type=GadgetTypeEnum.ATTAQUE),
-            Gadget(name="Overheat", description="Accélère le chrono ennemi.", price=550, image_url="Overheat.jpeg", type=GadgetTypeEnum.ATTAQUE),
+            Gadget(id=1, name="IronTwin", description="Double barrière (+4 questions).", price=450, image_url="IronTwin.jpeg", type=GadgetTypeEnum.DEFENSE),
+            Gadget(id=2, name="GhostKey", description="Bypass total des sécurités.", price=500, image_url="GhostKey.jpeg", type=GadgetTypeEnum.DEFENSE),
+            Gadget(id=3, name="SafeDrop", description="Bouclier anti-erreur (2 chances).", price=600, image_url="SafeDrop.jpeg", type=GadgetTypeEnum.DEFENSE),
+            Gadget(id=4, name="Cyberspy", description="Révèle la réponse correcte.", price=250, image_url="Cyberspy.jpeg", type=GadgetTypeEnum.DEFENSE),
+            Gadget(id=5, name="floral", description="Protocole bonus crypté.", price=200, image_url="floral.jpeg", type=GadgetTypeEnum.DEFENSE),
+            Gadget(id=6, name="GlitchScreen", description="Brouillage visuel intense.", price=300, image_url="GlitchScreen.jpeg", type=GadgetTypeEnum.ATTAQUE),
+            Gadget(id=7, name="DrainCash", description="Détourne les gains adverses.", price=400, image_url="DrainCash.jpeg", type=GadgetTypeEnum.ATTAQUE),
+            Gadget(id=8, name="FrostTrap", description="Gèle l'attaquant sur erreur.", price=350, image_url="FrostTrap.jpeg", type=GadgetTypeEnum.ATTAQUE),
+            Gadget(id=9, name="Overheat", description="Surcharge le CPU (Timer rapide).", price=550, image_url="Overheat.jpeg", type=GadgetTypeEnum.ATTAQUE),
         ]
         db.add_all(gadgets)
 
-        # 3. Grands Secteurs
-        sectors = [
-            {"name": "SECTEUR ANJOMA", "lat": -21.4546, "lng": 47.0875, "rad": 150, "p": 300, "palier": PalierTopographique.BASSE, "desc": "Zone commerciale."},
-            {"name": "CORE AMPASAMBAZAHA", "lat": -21.4491, "lng": 47.0880, "rad": 200, "p": 450, "palier": PalierTopographique.MOYENNE, "desc": "Centre administratif."},
-            {"name": "CAMPUS ANDRAINJATO", "lat": -21.4617, "lng": 47.1118, "rad": 300, "p": 1000, "palier": PalierTopographique.BASSE, "desc": "Pôle technologique."},
-            {"name": "CITADELLE AMBOZONTANY", "lat": -21.4580, "lng": 47.0760, "rad": 180, "p": 600, "palier": PalierTopographique.HAUTE, "desc": "Sommet historique."},
-            {"name": "RELAIS ANOSY", "lat": -21.4520, "lng": 47.0850, "rad": 120, "p": 250, "palier": PalierTopographique.MOYENNE, "desc": "Nœud de communication."},
-            {"name": "BASTION ROVA", "lat": -21.4597, "lng": 47.0768, "rad": 140, "p": 500, "palier": PalierTopographique.HAUTE, "desc": "Ancien palais."},
-            {"name": "DATA CENTER ENI", "lat": -21.4551, "lng": 47.0934, "rad": 250, "p": 800, "palier": PalierTopographique.BASSE, "desc": "Temple du code."},
+        # 3. SECTEURS (20 Districts)
+        print("Maillage de Fianarantsoa...")
+        sectors_data = [
+            ("SECTEUR ANJOMA", -21.4546, 47.0875, 200, 400, PalierTopographique.BASSE),
+            ("CORE AMPASAMBAZAHA", -21.4491, 47.0880, 250, 600, PalierTopographique.MOYENNE),
+            ("CAMPUS ANDRAINJATO", -21.4617, 47.1118, 300, 1000, PalierTopographique.BASSE),
+            ("CITADELLE AMBOZONTANY", -21.4580, 47.0760, 180, 800, PalierTopographique.HAUTE),
+            ("STATION ANOSY", -21.4520, 47.0850, 150, 300, PalierTopographique.MOYENNE),
+            ("BASTION ROVA", -21.4597, 47.0768, 160, 700, PalierTopographique.HAUTE),
+            ("LABO ENI", -21.4551, 47.0934, 250, 900, PalierTopographique.BASSE),
+            ("HUB ANTARANDOLO", -21.4465, 47.0830, 220, 500, PalierTopographique.MOYENNE),
+            ("SQUARE TSIANOLONDROA", -21.4505, 47.0910, 200, 450, PalierTopographique.BASSE),
+            ("TERMINAL SOAMIERANA", -21.4400, 47.0880, 180, 350, PalierTopographique.BASSE),
+            ("ZONE INDUSTRIELLE", -21.4650, 47.0950, 300, 550, PalierTopographique.BASSE),
+            ("PLATEAU AMBALAVAO", -21.4570, 47.0820, 150, 400, PalierTopographique.MOYENNE),
+            ("ANTENNE AMBATOMENA", -21.4450, 47.0780, 170, 600, PalierTopographique.HAUTE),
+            ("RELAIS MANDRIAMBATO", -21.4620, 47.0860, 200, 450, PalierTopographique.MOYENNE),
+            ("ARCHIVES BERAVINA", -21.4530, 47.0740, 140, 500, PalierTopographique.HAUTE),
+            ("DATA POINT ISADA", -21.4500, 47.0850, 160, 300, PalierTopographique.MOYENNE),
+            ("VILLAGE TANEKARETSAKA", -21.4700, 47.0800, 250, 400, PalierTopographique.BASSE),
+            ("FORT AMBONDRONA", -21.4420, 47.1000, 220, 550, PalierTopographique.BASSE),
+            ("OUTPOST SAHATANY", -21.4600, 47.0650, 280, 400, PalierTopographique.MOYENNE),
+            ("GATEWAY TAMBOHO", -21.4350, 47.0850, 200, 350, PalierTopographique.BASSE),
         ]
-        for s in sectors:
-            db.add(GameBase(
-                name=s["name"], latitude=s["lat"], longitude=s["lng"],
-                palier=s["palier"], description=s["desc"],
-                conquest_radius_m=float(s["rad"]), points_value=s["p"]
-            ))
+        for name, lat, lng, rad, points, palier in sectors_data:
+            db.add(GameBase(name=name, latitude=lat, longitude=lng, palier=palier, conquest_radius_m=float(rad), points_value=points))
 
-        # 4. Banque de 100 Questions (Restaurée)
+        # 4. 100 QUESTIONS TECHNIQUES (Bout de code raccourci pour l'affichage mais complet en exécution)
+        print("Chargement des 100 modules de connaissances...")
         q_raw = [
-            # ALGORITHME & COMPLEXITÉ (25)
+            # ALGO (25)
             {"t": "Algo", "q": "Complexité temporelle du tri fusion (Merge Sort) ?", "a": "O(n log n)", "w": ["O(n²)", "O(n)", "O(log n)"], "h": ["Diviser pour régner.", "Stable."], "d": "moyen"},
             {"t": "Algo", "q": "Détecter des cycles dans un graphe dirigé ?", "a": "Parcours DFS", "w": ["Prim", "Kruskal", "BFS"], "h": ["Pile d'appels.", "Profondeur."], "d": "difficile"},
             {"t": "Algo", "q": "Recherche BST temps moyen ?", "a": "O(log n)", "w": ["O(n)", "O(1)", "O(n log n)"], "h": ["Dichotomique.", "Hauteur arbre."], "d": "facile"},
@@ -74,7 +91,7 @@ def seed_database():
             {"t": "Algo", "q": "Algorithme Kruskal sert à ?", "a": "Arbre couvrant minimal", "w": ["Plus court chemin", "Tri rapide", "Hachage"], "h": ["Forêt sommets.", "Évite cycles."], "d": "moyen"},
             {"t": "Algo", "q": "Complexité matrice adjacence V sommets ?", "a": "O(V²)", "w": ["O(V)", "O(E+V)", "O(log V)"], "h": ["Grille stockage.", "V x V."], "d": "moyen"},
             {"t": "Algo", "q": "Complexité Bubble Sort ?", "a": "O(n²)", "w": ["O(n log n)", "O(n)", "O(1)"], "h": ["Boucles imbriquées.", "Inefficace."], "d": "facile"},
-            {"t": "Algo", "q": "Principe Diviser pour régner ?", "a": "Sous-problèmes indépendants", "w": ["Nb serveurs", "Casser en fonctions", "Mémoire cache"], "h": ["Recursivité.", "Divide and Conquer."], "d": "facile"},
+            {"t": "Algo", "q": "Principes Diviser pour régner ?", "a": "Sous-problèmes indépendants", "w": ["Nb serveurs", "Casser en fonctions", "Mémoire cache"], "h": ["Recursivité.", "Divide and Conquer."], "d": "facile"},
             {"t": "Algo", "q": "Classe P=NP ?", "a": "Égalité résolution/vérification", "w": ["Puissance/Vitesse", "Normalisé", "Non-Polynomial"], "h": ["Millénium Prize.", "Mystère."], "d": "moyen"},
             {"t": "Algo", "q": "Complexité parcours BFS ?", "a": "O(V + E)", "w": ["O(V²)", "O(E log V)", "O(V)"], "h": ["Visite tout.", "Linéaire."], "d": "difficile"},
             {"t": "Algo", "q": "Structure parcours DFS ?", "a": "Stack", "w": ["Queue", "Array", "Set"], "h": ["LIFO.", "Profondeur."], "d": "facile"},
@@ -86,8 +103,7 @@ def seed_database():
             {"t": "Algo", "q": "Mémoïsation évite ?", "a": "Recalcul sous-problèmes", "w": ["Syntaxe", "Fuite mémoire", "Collision"], "h": ["Cache.", "Dynamique."], "d": "facile"},
             {"t": "Algo", "q": "E dans un graphe ?", "a": "Edges (Arêtes)", "w": ["Entries", "Execution", "Energy"], "h": ["Liens.", "Anglais."], "d": "facile"},
             {"t": "Algo", "q": "Hachage pire cas recherche ?", "a": "O(n)", "w": ["O(1)", "O(log n)", "O(n log n)"], "h": ["Collisions.", "Linéaire."], "d": "difficile"},
-
-            # CODE & PROGRAMMATION (25)
+            # CODE (25)
             {"t": "Code", "q": "Signification SOLID ?", "a": "5 principes conception", "w": ["Robuste", "Cryptée", "Tri rapide"], "h": ["S=Single Responsibility.", "Objet."], "d": "moyen"},
             {"t": "Code", "q": "Mot-clé Java non-modifiable ?", "a": "final", "w": ["static", "const", "immutable"], "h": ["Héritage aussi.", "Dernière."], "d": "facile"},
             {"t": "Code", "q": "Protocole API REST ?", "a": "HTTP", "w": ["TCP", "UDP", "SSH"], "h": ["Web.", "Stateless."], "d": "facile"},
@@ -96,8 +112,8 @@ def seed_database():
             {"t": "Code", "q": "Lequel a un GC ?", "a": "Java", "w": ["C", "C++", "ASM"], "h": ["Auto mémoire.", "JVM."], "d": "facile"},
             {"t": "Code", "q": "typeof null en JS ?", "a": "object", "w": ["null", "undefined", "empty"], "h": ["Erreur historique.", "Pas null."], "d": "difficile"},
             {"t": "Code", "q": "Interface en POO ?", "a": "Contrat méthodes", "w": ["Fenêtre", "Global", "Data"], "h": ["Abstraction.", "Pas impl."], "d": "facile"},
-            {"t": "Code", "q": "Constructeur Python ?", "a": "Initialise attributs", "w": ["Détruit", "Affiche", "Compile"], "h": ["__init__.", "Init."], "d": "facile"},
-            {"t": "Code", "q": "Signification CSS ?", "a": "Cascading Style Sheets", "w": ["Computer", "Script", "Cyber"], "h": ["Cascade.", "Design."], "d": "facile"},
+            {"t": "Code", "q": "Constructeur Python ?", "a": "__init__", "w": ["new", "create", "construct"], "h": ["Double underscore.", "Init."], "d": "facile"},
+            {"t": "Code", "q": "Signification CSS ?", "a": "Cascading Style Sheets", "w": ["Computer Style", "Cyber Sheets", "Code Style"], "h": ["Cascade.", "Design."], "d": "facile"},
             {"t": "Code", "q": "1 == 1.0 Python ?", "a": "True", "w": ["False", "Error", "None"], "h": ["Valeur.", "Float."], "d": "moyen"},
             {"t": "Code", "q": "Git prépare fichiers ?", "a": "git add", "w": ["git stage", "git push", "git save"], "h": ["Index.", "Ajouter."], "d": "facile"},
             {"t": "Code", "q": "Langage Kernel ?", "a": "C", "w": ["Java", "Python", "PHP"], "h": ["Hardware.", "Vitesse."], "d": "facile"},
@@ -113,8 +129,7 @@ def seed_database():
             {"t": "Code", "q": "Git push ?", "a": "Envoie distant", "w": ["Récupère", "Commit", "Supprime"], "h": ["Pousser.", "Synchro."], "d": "facile"},
             {"t": "Code", "q": "NullPointerException ?", "a": "Accès non initialisé", "w": ["Calcul", "Réseau", "Mémoire"], "h": ["Pointeur nul.", "Vide."], "d": "moyen"},
             {"t": "Code", "q": "JSON signifie ?", "a": "JavaScript Object Notation", "w": ["Simple", "Standard", "Joint"], "h": ["Texte.", "JS."], "d": "facile"},
-
-            # LOGIQUE & RAISONNEMENT (25)
+            # LOGIQUE (25)
             {"t": "Logique", "q": "1, 4, 9, 16, ?", "a": "25", "w": ["20", "36", "30"], "h": ["Carrés.", "5x5."], "d": "facile"},
             {"t": "Logique", "q": "Négation A ET B ?", "a": "NON A OU NON B", "w": ["NON A ET NON B", "A OU B", "NON A"], "h": ["De Morgan.", "Inversion."], "d": "difficile"},
             {"t": "Logique", "q": "1011 en décimal ?", "a": "11", "w": ["13", "9", "7"], "h": ["Binaire.", "8+2+1."], "d": "moyen"},
@@ -140,8 +155,7 @@ def seed_database():
             {"t": "Logique", "q": "Suite O, T, T, F, F, S, S, E, N, ?", "a": "T", "w": ["X", "Z", "S"], "h": ["One, Two, Three...", "Anglais."], "d": "difficile"},
             {"t": "Logique", "q": "Mois avec 28 jours ?", "a": "12", "w": ["1", "0", "4"], "h": ["Tous.", "Piège."], "d": "difficile"},
             {"t": "Logique", "q": "3 pilules toutes les 30 min, durée ?", "a": "60 minutes", "w": ["90 minutes", "30 minutes", "120 minutes"], "h": ["0, 30, 60.", "Intervalles."], "d": "moyen"},
-
-            # RÉSEAU & SYSTÈME (25)
+            # RESEAU (25)
             {"t": "Réseau", "q": "Routage Dijkstra ?", "a": "OSPF", "w": ["RIP", "BGP", "EIGRP"], "h": ["Link-State.", "Shortest Path."], "d": "difficile"},
             {"t": "Réseau", "q": "Port PostgreSQL ?", "a": "5432", "w": ["3306", "8080", "27017"], "h": ["Notre DB.", "5432."], "d": "moyen"},
             {"t": "Réseau", "q": "RAID 0 signifie ?", "a": "Performance (Striping)", "w": ["Sécurité", "Parité", "Chiffre"], "h": ["Vitesse.", "Zéro redondance."], "d": "moyen"},
@@ -176,7 +190,7 @@ def seed_database():
             db.add(QuizQuestion(theme=rq["t"], text=rq["q"], answers=ans, hints=rq["h"], difficulty=rq["d"]))
 
         db.commit()
-        print(f"Base de données peuplée avec succès (V3.5) !")
+        print(f"MISSION RÉUSSIE : Tout le contenu est restauré. Utilisateurs préservés.")
 
     except Exception as e:
         db.rollback()

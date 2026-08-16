@@ -12,10 +12,20 @@ import 'screens/territory_screen.dart';
 import 'widgets/auth_gate.dart';
 import 'services/auth_service.dart';
 import 'services/user_service.dart';
+import 'services/audio_service.dart';
+import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: ".env");
+  
+  // Initialisation des services Multimédia
+  await AudioService().init();
+  await NotificationService().init();
+  
+  // Démarrage de la musique de fond
+  AudioService().startBGM();
+
   runApp(const MapAdyApp());
 }
 
@@ -56,6 +66,13 @@ class _RootNavigationState extends State<RootNavigation> {
     super.initState();
     _loadUserSession();
     navigationNotifier.addListener(_onNavigationRequest);
+    
+    // Notification de bienvenue
+    NotificationService().showNotification(
+      id: 0,
+      title: "SYSTÈME EN LIGNE",
+      body: "Connexion sécurisée établie. Prêt pour la conquête, Agent.",
+    );
   }
 
   @override
@@ -110,7 +127,7 @@ class _RootNavigationState extends State<RootNavigation> {
                 children: _screens,
               ),
 
-              // Top Bar : TOUJOURS visible, avec bouton retour en mode conquête
+              // Top Bar
               Positioned(
                 top: 0,
                 left: 0,

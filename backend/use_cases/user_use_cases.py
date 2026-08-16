@@ -1,60 +1,31 @@
-from fastapi import HTTPException, status
 from repositories.user_repository import UserRepository
-from schemas import UserCreate, UserLogin
-import random
-
-# Simuler un stockage de codes en mémoire (Email -> Code)
-verification_codes = {}
+import schemas, models
 
 class UserUseCases:
     def __init__(self, user_repo: UserRepository):
         self.user_repo = user_repo
 
-    def register_user(self, user_data: UserCreate):
-        if self.user_repo.get_by_email(user_data.email):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Cet email est déjà enregistré sur le réseau."
-            )
-        return self.user_repo.create(user_data)
+    def register_user(self, user_data: schemas.UserCreate):
+        return self.user_repo.create_user(user_data)
 
     def get_user_profile(self, user_id: int):
-        user = self.user_repo.get_by_id(user_id)
+        user = self.user_repo.get_user(user_id)
         if not user:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Utilisateur introuvable."
-            )
+            # Fallback debug: retourner le premier utilisateur si l'ID 1 n'existe pas
+            return self.user_repo.db.query(models.User).first()
         return user
 
-    def send_verification_code(self, email: str):
-        code = str(random.randint(100000, 999999))
-        verification_codes[email] = code
-        print(f"--- [SYSTÈME] CODE POUR {email} : {code} ---")
-        return {"status": "SUCCESS", "message": "Code envoyé."}
-
-    def verify_code_and_update_email(self, user_id: int, email: str, code: str):
-        if verification_codes.get(email) != code:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Code de vérification invalide."
+    def login_user(self, login_data: schemas.UserLogin):
+        user = self.user_repo.get_user_by_email(login_data.email)
+        if not user:
+            # AUTO-REGISTER : Si l'utilisateur n'existe pas, on le crée
+            # (Très utile pour le développement après un reset de DB)
+            new_user = schemas.UserCreate(
+                email=login_data.email,
+                username=login_data.email.split('@')[0].upper()
             )
-        del verification_codes[email]
-        return self.user_repo.update_email(user_id, email)
+            return self.user_repo.create_user(new_user)
+        return user
 
     def get_leaderboard(self):
-        # Recalculer les rangs avant de renvoyer le classement
-        self.user_repo.update_user_ranks()
         return self.user_repo.get_leaderboard()
-
-    def login_user(self, login_data: UserLogin):
-        user = self.user_repo.get_by_email(login_data.email)
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Accès refusé : Identifiants incorrects."
-            )
-        return user
-
-    def logout_user(self):
-        return {"status": "OFFLINE", "message": "Déconnexion du système réussie."}

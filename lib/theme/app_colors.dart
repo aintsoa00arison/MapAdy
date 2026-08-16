@@ -13,6 +13,9 @@ class AppColors {
   // Secondary (Magenta Pulse)
   static const Color secondary = Color(0xFFFFACE8);
 
+  // Territory Status
+  static const Color territoryOwned = Color(0xFF39FF14); // Vert néon "Hacker" intense
+
   // Surface and Blur effects
   static const Color surface = Color(0x1A00F0FF); // Translucent Cyan for blur containers
   static const Color border = Color(0x8000F0FF);  // 50% opacity Cyan for borders
