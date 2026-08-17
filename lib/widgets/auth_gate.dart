@@ -3,34 +3,60 @@ import '../services/auth_service.dart';
 import '../screens/auth/login_screen.dart';
 import '../main.dart';
 
-/// Un middleware/gate qui vérifie la session au démarrage
-class AuthGate extends StatelessWidget {
+class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
 
   @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
+  bool _isInitializing = true;
+  bool _isLoggedIn = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkSession();
+    // On écoute le changement de session une seule fois pour la redirection
+    UserSession.userNotifier.addListener(_onUserChanged);
+  }
+
+  @override
+  void dispose() {
+    UserSession.userNotifier.removeListener(_onUserChanged);
+    super.dispose();
+  }
+
+  void _onUserChanged() {
+    final hasUser = UserSession.userNotifier.value != null;
+    if (hasUser != _isLoggedIn) {
+      setState(() {
+        _isLoggedIn = hasUser;
+      });
+    }
+  }
+
+  Future<void> _checkSession() async {
+    final user = await AuthService().getSavedSession();
+    if (mounted) {
+      setState(() {
+        _isLoggedIn = user != null;
+        _isInitializing = false;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final authService = AuthService();
+    if (_isInitializing) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF131318),
+        body: Center(child: CircularProgressIndicator(color: Color(0xFF00F0FF))),
+      );
+    }
 
-    return FutureBuilder<Map<String, dynamic>?>(
-      future: authService.getSavedSession(),
-      builder: (context, snapshot) {
-        // En attente de la lecture des SharedPreferences
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            backgroundColor: Color(0xFF131318),
-            body: Center(
-              child: CircularProgressIndicator(color: Color(0xFF00F0FF)),
-            ),
-          );
-        }
-
-        // Si on a une session, on va vers l'app, sinon vers Login
-        if (snapshot.hasData && snapshot.data != null) {
-          return const RootNavigation();
-        } else {
-          return const LoginScreen();
-        }
-      },
-    );
+    // On retourne l'un ou l'autre. Flutter gérera la transition proprement.
+    return _isLoggedIn ? const RootNavigation() : const LoginScreen();
   }
 }

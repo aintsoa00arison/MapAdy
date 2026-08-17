@@ -29,7 +29,7 @@ class StatsCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'STATISTIQUES OPÉRATIONNELLES',
+                'STATS',
                 style: Theme.of(context).textTheme.labelLarge?.copyWith(fontSize: 10),
               ),
               GestureDetector(
@@ -53,8 +53,8 @@ class StatsCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildStatItem(context, 'MISSIONS', '$missions', AppColors.primary),
-              _buildStatItem(context, 'EQUIPEMENT', '$gear', AppColors.secondary),
+              _buildStatItem(context, 'HACKS', '$missions', AppColors.primary),
+              _buildStatItem(context, 'TERRITOIRES', '$gear', AppColors.secondary),
               _buildStatItem(context, 'RANG', rank, Colors.green),
             ],
           ),

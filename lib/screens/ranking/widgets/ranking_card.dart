@@ -18,7 +18,8 @@ class RankingCard extends StatelessWidget {
     final int rank = player['rank_position'] ?? 0;
     final String name = player['username'] ?? 'AGENT';
     final int wins = player['quiz_victories'] ?? 0;
-    final int points = player['gold'] ?? 0;
+    final int territories = player['territories_captured'] ?? 0;
+    final String rankTitle = player['rank_title'] ?? 'ROOKIE';
     final String avatarUrl = "assets/avatar/${player['avatar'] ?? 'avatar_1.jpeg'}";
 
     Color highlightColor;
@@ -32,7 +33,7 @@ class RankingCard extends StatelessWidget {
     
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
         color: isFocused 
             ? highlightColor.withValues(alpha: 0.15) 
@@ -45,21 +46,27 @@ class RankingCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Text(
-            rank.toString(),
-            style: TextStyle(
-              color: isFocused ? highlightColor : Colors.white30,
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-              fontFamily: 'Anybody',
+          // RANG NUMERIQUE
+          SizedBox(
+            width: 30,
+            child: Text(
+              rank.toString(),
+              style: TextStyle(
+                color: isFocused ? highlightColor : Colors.white30,
+                fontSize: 16,
+                fontWeight: FontWeight.w900,
+                fontFamily: 'Anybody',
+              ),
             ),
           ),
-          const SizedBox(width: 16),
+          
           CircleAvatar(
-            radius: 20,
+            radius: 18,
             backgroundImage: AssetImage(avatarUrl),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 12),
+          
+          // INFOS AGENT
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -71,24 +78,50 @@ class RankingCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: isFocused ? highlightColor : Colors.white,
-                    fontSize: 14,
+                    fontSize: 13,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 Text(
-                  '$wins Hacks réussis',
-                  style: const TextStyle(color: Colors.white38, fontSize: 10),
+                  rankTitle,
+                  style: TextStyle(
+                    color: isFocused ? highlightColor.withValues(alpha: 0.7) : AppColors.primary.withValues(alpha: 0.5),
+                    fontSize: 9,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1,
+                  ),
                 ),
               ],
             ),
           ),
-          Text(
-            "$points CC",
-            style: TextStyle(
-              color: isFocused ? highlightColor : AppColors.primary,
-              fontWeight: FontWeight.bold,
-              fontSize: 12,
-            ),
+          
+          // STATS (MISSIONS & TERRITOIRES)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.bolt, color: AppColors.primary, size: 10),
+                  const SizedBox(width: 4),
+                  Text(
+                    "$wins HACKS",
+                    style: const TextStyle(color: Colors.white70, fontSize: 9, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 2),
+              Row(
+                children: [
+                  const Icon(Icons.flag, color: AppColors.secondary, size: 10),
+                  const SizedBox(width: 4),
+                  Text(
+                    "$territories ZONES",
+                    style: const TextStyle(color: Colors.white70, fontSize: 9, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ],
           ),
         ],
       ),

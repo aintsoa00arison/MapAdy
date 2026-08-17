@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../quiz_battle/quiz_battle_screen.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:location/location.dart' as loc;
+import 'package:permission_handler/permission_handler.dart';
 import '../../theme/app_colors.dart';
 import '../../services/territory_service.dart';
 import '../../services/auth_service.dart';
@@ -12,7 +12,6 @@ import '../quiz/quiz_screen.dart';
 import 'widgets/map_display.dart';
 import 'widgets/normal_overlay.dart';
 import 'logic/test_zone_logic.dart';
-import '../../widgets/cyber_toast.dart';
 import '../../services/api_client.dart';
 
 final ValueNotifier<bool> hideBarsNotifier = ValueNotifier<bool>(false);
@@ -31,7 +30,6 @@ class _MapConquestScreenState extends State<MapConquestScreen> with TickerProvid
   bool _isConquestMode = false;
   Map<String, dynamic>? _userData;
   LatLng? _currentLocation;
-  final loc.Location _locationService = loc.Location();
   bool _isFollowingUser = true; 
   
   Map<String, dynamic>? _nearestBase;
@@ -47,11 +45,32 @@ class _MapConquestScreenState extends State<MapConquestScreen> with TickerProvid
     super.initState();
     _loadUserData();
     _fetchBases();
-    _initLocation();
+    _requestPermission(); // Vérification des permissions au démarrage
     _pulseController = AnimationController(vsync: this, duration: const Duration(seconds: 1))..repeat(reverse: true);
     _pulseAnimation = Tween<double>(begin: 0.9, end: 1.1).animate(_pulseController);
     _btnController = AnimationController(vsync: this, duration: const Duration(milliseconds: 400));
     hideBarsNotifier.addListener(_onToggleBars);
+  }
+
+  Future<void> _requestPermission() async {
+    final status = await Permission.location.request();
+    if (status.isDenied || status.isPermanentlyDenied) {
+      if (mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => AlertDialog(
+            backgroundColor: AppColors.background,
+            title: const Text("GPS REQUIS", style: TextStyle(color: AppColors.primary)),
+            content: const Text("MapAdy a besoin de votre position pour détecter les secteurs à conquérir.", style: TextStyle(color: Colors.white70)),
+            actions: [
+              TextButton(onPressed: () => openAppSettings(), child: const Text("PARAMÈTRES")),
+              TextButton(onPressed: () => Navigator.pop(context), child: const Text("OK")),
+            ],
+          ),
+        );
+      }
+    }
   }
 
   void _onToggleBars() {
@@ -64,43 +83,34 @@ class _MapConquestScreenState extends State<MapConquestScreen> with TickerProvid
     }
   }
 
-  Future<void> _initLocation() async {
-    try {
-      bool serviceEnabled = await _locationService.serviceEnabled();
-      if (!serviceEnabled) serviceEnabled = await _locationService.requestService();
+  @override
+  void dispose() {
+    hideBarsNotifier.removeListener(_onToggleBars);
+    _pulseController.dispose();
+    _btnController.dispose();
+    super.dispose();
+  }
 
-      loc.PermissionStatus permission = await _locationService.hasPermission();
-      if (permission == loc.PermissionStatus.denied) permission = await _locationService.requestPermission();
+  void _onNativeLocationUpdated(UserLocation location) {
+    if (!mounted) return;
 
-      // RÉGLAGE STABILITÉ : 2 secondes d'intervalle et 3 mètres de filtre
-      await _locationService.changeSettings(
-        accuracy: loc.LocationAccuracy.high, 
-        interval: 2000, 
-        distanceFilter: 3 
-      );
+    final newPos = location.position;
+    final accuracy = location.horizontalAccuracy ?? 999.0;
 
-      _locationService.onLocationChanged.listen((data) {
-        if (mounted && data.latitude != null) {
-          // FILTRE DE PRÉCISION : On ignore les points trop imprécis (> 25m)
-          if (data.accuracy != null && data.accuracy! > 25) {
-            print("Signal GPS faible : ${data.accuracy}m d'incertitude. Ignoré.");
-            return;
-          }
+    setState(() {
+      if (_currentLocation == null) {
+        _currentLocation = newPos; 
+      } else {
+        final weight = accuracy < 15 ? 0.7 : (accuracy < 30 ? 0.4 : 0.15);
+        _currentLocation = LatLng(
+          _currentLocation!.latitude + (newPos.latitude - _currentLocation!.latitude) * weight,
+          _currentLocation!.longitude + (newPos.longitude - _currentLocation!.longitude) * weight,
+        );
+      }
+      _currentAccuracy = accuracy;
+    });
 
-          final newPos = LatLng(data.latitude!, data.longitude!);
-          setState(() {
-            _currentLocation = newPos;
-            _currentAccuracy = data.accuracy ?? 0.0;
-          });
-          
-          _checkNearbyBases();
-
-          if (_isFollowingUser && _mapController != null) {
-            _mapController!.animateCamera(CameraUpdate.newLatLng(newPos));
-          }
-        }
-      });
-    } catch (e) {}
+    _checkNearbyBases();
   }
 
   void _checkNearbyBases() {
@@ -125,16 +135,26 @@ class _MapConquestScreenState extends State<MapConquestScreen> with TickerProvid
     final String? userJson = prefs.getString(AuthService.userKey);
     if (userJson != null) {
       final localUser = jsonDecode(userJson);
-      final updatedUser = await UserService().getProfile(localUser['id']);
-      setState(() => _userData = updatedUser ?? localUser);
+      UserService().getProfile(localUser['id']).then((updatedUser) {
+        if (updatedUser != null && mounted) {
+          setState(() => _userData = updatedUser);
+        }
+      });
+      setState(() => _userData = localUser);
     }
   }
 
   Future<void> _fetchBases() async {
-    final fetched = await TerritoryService().getAllBases();
-    if (mounted) {
-      setState(() => _bases = fetched);
-      if (_isStyleLoaded) _displayBases();
+    try {
+      final fetched = await TerritoryService().getAllBases();
+      if (mounted) {
+        setState(() {
+          _bases = fetched;
+        });
+        if (_isStyleLoaded) _displayBases();
+      }
+    } catch (e) {
+      debugPrint("DEBUG ERROR : Echec fetch bases: $e");
     }
   }
 
@@ -204,10 +224,16 @@ class _MapConquestScreenState extends State<MapConquestScreen> with TickerProvid
             onPointerDown: (_) { if (_isFollowingUser) setState(() => _isFollowingUser = false); },
             behavior: HitTestBehavior.translucent,
             child: MapDisplay(
-              controller: _mapController, bases: _bases, isStyleLoaded: _isStyleLoaded,
+              controller: _mapController, 
+              bases: _bases, 
+              isStyleLoaded: _isStyleLoaded,
+              isFollowingUser: _isFollowingUser,
               onMapCreated: (c) => _mapController = c,
-              onStyleLoaded: () { _isStyleLoaded = true; _displayBases(); },
-              onCameraMove: () {}, onLocationUpdated: (_) {}, 
+              onStyleLoaded: () { 
+                _isStyleLoaded = true; 
+                _displayBases(); 
+              },
+              onLocationUpdated: _onNativeLocationUpdated,
               styleString: "https://api.maptiler.com/maps/019ff69e-f86b-71eb-9174-7747851625cf/style.json?key=unUFY9uFBzpXNISNkIyg",
             ),
           ),
@@ -226,7 +252,7 @@ class _MapConquestScreenState extends State<MapConquestScreen> with TickerProvid
     String message = "SCAN RÉSEAU...";
     Color textColor = AppColors.primary;
 
-    if (_currentAccuracy > 25) {
+    if (_currentAccuracy > 30) {
       message = "SIGNAL GPS FAIBLE... PRÉCISION: ${_currentAccuracy.toInt()}M";
       textColor = Colors.orangeAccent;
     } else if (_nearestBase != null) {
@@ -234,11 +260,20 @@ class _MapConquestScreenState extends State<MapConquestScreen> with TickerProvid
       message = dist > 1000 ? "CIBLE À ${(dist/1000).toStringAsFixed(1)} KM" : "CIBLE À ${dist.toInt()} M";
     }
 
-    return Positioned(bottom: 110, left: 30, right: 30, child: Container(padding: const EdgeInsets.symmetric(vertical: 8), decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.7), borderRadius: BorderRadius.circular(10), border: Border.all(color: textColor.withValues(alpha: 0.3))), child: Text(message, textAlign: TextAlign.center, style: TextStyle(color: textColor, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1))));
+    return Positioned(bottom: 110, left: 30, right: 30, child: Container(padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16), decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.7), borderRadius: BorderRadius.circular(10), border: Border.all(color: textColor.withValues(alpha: 0.3))), child: Text(message, textAlign: TextAlign.center, style: TextStyle(color: textColor, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1))));
   }
 
   Widget _buildRecenterButton() {
-    return Positioned(right: 20, bottom: 160, child: FloatingActionButton(mini: true, backgroundColor: AppColors.background.withValues(alpha: 0.8), onPressed: () { setState(() => _isFollowingUser = true); if (_currentLocation != null) _mapController?.animateCamera(CameraUpdate.newLatLng(_currentLocation!)); }, child: Icon(Icons.my_location, color: _isFollowingUser ? AppColors.primary : Colors.white54)));
+    return Positioned(
+      right: 20, 
+      bottom: 160, 
+      child: FloatingActionButton(
+        mini: true, 
+        backgroundColor: AppColors.background.withValues(alpha: 0.8), 
+        onPressed: () => setState(() => _isFollowingUser = true), 
+        child: Icon(Icons.my_location, color: _isFollowingUser ? AppColors.primary : Colors.white54)
+      ),
+    );
   }
 
   Widget _buildHackButton() {

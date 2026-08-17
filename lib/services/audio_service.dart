@@ -27,14 +27,32 @@ class AudioService {
   Future<void> startBGM() async {
     try {
       await _musicPlayer.play(AssetSource('sound/sound_track.mp3'));
+      await _musicPlayer.setVolume(_musicVolume);
     } catch (e) {
       print("Erreur BGM: $e");
+    }
+  }
+
+  Future<void> pauseBGM() async {
+    await _musicPlayer.pause();
+  }
+
+  Future<void> resumeBGM() async {
+    if (_musicVolume > 0) {
+      await _musicPlayer.resume();
     }
   }
 
   Future<void> setMusicVolume(double volume) async {
     _musicVolume = volume;
     await _musicPlayer.setVolume(volume);
+    if (volume == 0) {
+      await _musicPlayer.pause();
+    } else {
+      if (_musicPlayer.state != PlayerState.playing) {
+        await _musicPlayer.resume();
+      }
+    }
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble(_musicKey, volume);
   }
@@ -50,8 +68,11 @@ class AudioService {
 
   Future<void> playSFX(String fileName) async {
     try {
-      await _sfxPlayer.setVolume(_sfxVolume);
-      await _sfxPlayer.play(AssetSource('sound/$fileName'));
+      if (_sfxVolume > 0) {
+        await _sfxPlayer.setVolume(_sfxVolume);
+        await _sfxPlayer.stop(); // Stop previous if playing
+        await _sfxPlayer.play(AssetSource('sound/$fileName'));
+      }
     } catch (e) {
       print("Erreur SFX ($fileName): $e");
     }

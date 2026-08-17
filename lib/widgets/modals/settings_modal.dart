@@ -97,7 +97,7 @@ class _SettingsModalState extends State<SettingsModal> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Icon(Icons.menu, color: AppColors.primary, size: 24),
+
           Text(
             'PARAMETRES',
             style: Theme.of(context).textTheme.labelLarge?.copyWith(

@@ -4,18 +4,20 @@ import '../../../theme/app_colors.dart';
 class UserRankBanner extends StatelessWidget {
   final int rank;
   final String name;
+  final String? rankTitle;
 
   const UserRankBanner({
     super.key,
     required this.rank,
     required this.name,
+    this.rankTitle,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
-      height: 180,
+      height: 200,
       width: double.infinity,
       child: Stack(
         alignment: Alignment.center,
@@ -41,21 +43,21 @@ class UserRankBanner extends StatelessWidget {
           Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text(
-                'VOTRE RANG',
-                style: TextStyle(
+              Text(
+                rankTitle ?? 'AGENT DE TERRAIN',
+                style: const TextStyle(
                   color: Colors.white70,
-                  fontSize: 12,
-                  letterSpacing: 2,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 10,
+                  letterSpacing: 4,
+                  fontWeight: FontWeight.w900,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
               Text(
                 '#$rank',
                 style: TextStyle(
                   color: AppColors.secondary,
-                  fontSize: 54,
+                  fontSize: 64,
                   fontWeight: FontWeight.w900,
                   fontFamily: 'Anybody',
                   shadows: [
@@ -63,7 +65,7 @@ class UserRankBanner extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                 decoration: BoxDecoration(

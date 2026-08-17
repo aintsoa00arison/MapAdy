@@ -71,7 +71,7 @@ class _RankingScreenState extends State<RankingScreen> {
     }
 
     // Gestion robuste de l'utilisateur actuel dans la liste
-    Map<String, dynamic> myDataInList = {'rank_position': 0, 'username': '---'};
+    Map<String, dynamic> myDataInList = {'rank_position': 0, 'username': '---', 'rank_title': 'ROOKIE'};
     if (_players.isNotEmpty) {
       myDataInList = _players.firstWhere(
         (p) => p['id'] == _currentUser?['id'],
@@ -88,7 +88,8 @@ class _RankingScreenState extends State<RankingScreen> {
               const SizedBox(height: 110), 
               UserRankBanner(
                 rank: myDataInList['rank_position'], 
-                name: myDataInList['username']
+                name: myDataInList['username'],
+                rankTitle: myDataInList['rank_title'],
               ),
               Expanded(
                 child: ListWheelScrollView.useDelegate(

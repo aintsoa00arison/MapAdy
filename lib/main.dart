@@ -19,18 +19,41 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: ".env");
   
-  // Initialisation des services Multimédia
   await AudioService().init();
   await NotificationService().init();
-  
-  // Démarrage de la musique de fond
   AudioService().startBGM();
 
   runApp(const MapAdyApp());
 }
 
-class MapAdyApp extends StatelessWidget {
+class MapAdyApp extends StatefulWidget {
   const MapAdyApp({super.key});
+
+  @override
+  State<MapAdyApp> createState() => _MapAdyAppState();
+}
+
+class _MapAdyAppState extends State<MapAdyApp> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      AudioService().pauseBGM();
+    } else if (state == AppLifecycleState.resumed) {
+      AudioService().resumeBGM();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -54,20 +77,23 @@ class _RootNavigationState extends State<RootNavigation> {
   int _currentIndex = 0;
   Map<String, dynamic>? _userData;
 
-  final List<Widget> _screens = [
-    const MapConquestScreen(),
-    const ShopScreen(),
-    const RankingScreen(),
-    const TerritoryScreen(),
-  ];
+  Widget _getSelectedScreen(int index) {
+    switch (index) {
+      case 0: return const MapConquestScreen();
+      case 1: return const ShopScreen();
+      case 2: return const RankingScreen();
+      case 3: return const TerritoryScreen();
+      default: return const MapConquestScreen();
+    }
+  }
 
   @override
   void initState() {
     super.initState();
-    _loadUserSession();
+    _userData = UserSession.userNotifier.value;
     navigationNotifier.addListener(_onNavigationRequest);
+    _refreshUserData();
     
-    // Notification de bienvenue
     NotificationService().showNotification(
       id: 0,
       title: "SYSTÈME EN LIGNE",
@@ -81,37 +107,24 @@ class _RootNavigationState extends State<RootNavigation> {
     super.dispose();
   }
 
-  Future<void> _loadUserSession() async {
-    final prefs = await SharedPreferences.getInstance();
-    final String? userJson = prefs.getString(AuthService.userKey);
-    if (userJson != null) {
-      setState(() {
-        _userData = jsonDecode(userJson);
-      });
-      _refreshUserData();
-    }
-  }
-
   Future<void> _refreshUserData() async {
-    if (_userData != null) {
-      final updatedUser = await UserService().getProfile(_userData!['id']);
-      if (updatedUser != null) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString(AuthService.userKey, jsonEncode(updatedUser));
-        if (mounted) {
-          setState(() {
-            _userData = updatedUser;
-          });
+    final user = UserSession.userNotifier.value;
+    if (user != null) {
+      UserService().getProfile(user['id']).then((updatedUser) {
+        if (updatedUser != null && mounted) {
+          UserSession.setUser(updatedUser);
+          setState(() => _userData = updatedUser);
         }
-      }
+      });
     }
   }
 
   void _onNavigationRequest() {
-    setState(() {
-      _currentIndex = navigationNotifier.value;
-    });
-    _refreshUserData();
+    if (mounted) {
+      setState(() {
+        _currentIndex = navigationNotifier.value;
+      });
+    }
   }
 
   @override
@@ -122,43 +135,31 @@ class _RootNavigationState extends State<RootNavigation> {
         return Scaffold(
           body: Stack(
             children: [
-              IndexedStack(
-                index: _currentIndex,
-                children: _screens,
-              ),
-
-              // Top Bar
+              _getSelectedScreen(_currentIndex),
               Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
+                top: 0, left: 0, right: 0,
                 child: SafeArea(
-                  child: TopBar(
-                    username: _userData?['username'] ?? 'AGENT',
-                    gold: _userData?['gold'] ?? 0,
-                    avatarPath: _userData?['avatar'] ?? 'avatar_1.jpeg',
-                    onProfileReturn: _refreshUserData,
-                    showBackButton: hideBars,
-                    onBack: () {
-                      hideBarsNotifier.value = false;
+                  child: ValueListenableBuilder<Map<String, dynamic>?>(
+                    valueListenable: UserSession.userNotifier,
+                    builder: (context, user, child) {
+                      return TopBar(
+                        username: user?['username'] ?? 'AGENT',
+                        gold: user?['gold'] ?? 0,
+                        avatarPath: user?['avatar'] ?? 'avatar_1.jpeg',
+                        onProfileReturn: _refreshUserData,
+                        showBackButton: hideBars,
+                        onBack: () => hideBarsNotifier.value = false,
+                      );
                     },
                   ),
                 ),
               ),
-
-              // Seule la Bottom Bar disparaît
               if (!hideBars)
                 Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
+                  bottom: 0, left: 0, right: 0,
                   child: CyberBottomBar(
                     activeIndex: _currentIndex,
-                    onTap: (index) {
-                      setState(() {
-                        _currentIndex = index;
-                      });
-                    },
+                    onTap: (index) => setState(() => _currentIndex = index),
                   ),
                 ),
             ],

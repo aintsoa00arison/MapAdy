@@ -6,9 +6,9 @@ class MapDisplay extends StatelessWidget {
   final MapLibreMapController? controller;
   final List<Map<String, dynamic>> bases;
   final bool isStyleLoaded;
+  final bool isFollowingUser;
   final Function(MapLibreMapController) onMapCreated;
   final VoidCallback onStyleLoaded;
-  final VoidCallback onCameraMove;
   final Function(UserLocation) onLocationUpdated;
   final String styleString;
 
@@ -17,9 +17,9 @@ class MapDisplay extends StatelessWidget {
     required this.controller,
     required this.bases,
     required this.isStyleLoaded,
+    required this.isFollowingUser,
     required this.onMapCreated,
     required this.onStyleLoaded,
-    required this.onCameraMove,
     required this.onLocationUpdated,
     required this.styleString,
   });
@@ -29,16 +29,17 @@ class MapDisplay extends StatelessWidget {
     return MapLibreMap(
       onMapCreated: onMapCreated,
       onStyleLoadedCallback: onStyleLoaded,
-      onCameraMove: (position) => onCameraMove(), 
       onUserLocationUpdated: onLocationUpdated,
       initialCameraPosition: const CameraPosition(target: LatLng(-21.4536, 47.0833), zoom: 13.5),
       styleString: styleString,
-      // Réactivation du point bleu original
-      myLocationEnabled: true, 
-      myLocationRenderMode: MyLocationRenderMode.normal,
-      myLocationTrackingMode: MyLocationTrackingMode.none,
+      myLocationEnabled: true,
+      myLocationRenderMode: MyLocationRenderMode.gps,
+      myLocationTrackingMode: isFollowingUser
+          ? MyLocationTrackingMode.trackingCompass
+          : MyLocationTrackingMode.none,
+      // On ajuste la boussole pour qu'elle soit bien visible sous la TopBar
       compassViewPosition: CompassViewPosition.topRight,
-      compassViewMargins: const math.Point(20, 180),
+      compassViewMargins: const math.Point(24, 110),
     );
   }
 }
