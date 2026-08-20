@@ -22,14 +22,19 @@ class _GlitchEffectState extends State<GlitchEffect> {
   @override
   void initState() {
     super.initState();
-    if (widget.active) _startGlitch();
+    if (widget.active) {
+      _startGlitch();
+    }
   }
 
   @override
   void didUpdateWidget(GlitchEffect oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.active && !oldWidget.active) _startGlitch();
-    else if (!widget.active && oldWidget.active) _stopGlitch();
+    if (widget.active && !oldWidget.active) {
+      _startGlitch();
+    } else if (!widget.active && oldWidget.active) {
+      _stopGlitch();
+    }
   }
 
   void _startGlitch() {
@@ -37,12 +42,14 @@ class _GlitchEffectState extends State<GlitchEffect> {
     _timer = Timer.periodic(const Duration(milliseconds: 30), (timer) {
       if (mounted) {
         setState(() {
-          if (_random.nextDouble() < 0.5) { // 50% de chance de glitch par frame
-            _xOffset = (_random.nextDouble() - 0.5) * 50; // Secousse Violente
+          if (_random.nextDouble() < 0.5) { 
+            _xOffset = (_random.nextDouble() - 0.5) * 50; 
             _yOffset = (_random.nextDouble() - 0.5) * 15;
-            _skew = (_random.nextDouble() - 0.5) * 0.3; // Distorsion Tordue
+            _skew = (_random.nextDouble() - 0.5) * 0.3; 
           } else {
-            _xOffset = 0; _yOffset = 0; _skew = 0;
+            _xOffset = 0; 
+            _yOffset = 0; 
+            _skew = 0;
           }
         });
       }
@@ -51,22 +58,33 @@ class _GlitchEffectState extends State<GlitchEffect> {
 
   void _stopGlitch() {
     _timer?.cancel();
-    if (mounted) setState(() { _xOffset = 0; _yOffset = 0; _skew = 0; });
+    if (mounted) {
+      setState(() {
+        _xOffset = 0; 
+        _yOffset = 0; 
+        _skew = 0;
+      });
+    }
   }
 
   @override
-  void dispose() { _timer?.cancel(); super.dispose(); }
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    if (!widget.active) return widget.child;
+    if (!widget.active) {
+      return widget.child;
+    }
 
     return Stack(
       children: [
         // Contenu Principal Transformé
         Transform(
           transform: Matrix4.identity()
-            ..translate(_xOffset, _yOffset)
+            ..setTranslationRaw(_xOffset, _yOffset, 0.0)
             ..setEntry(0, 1, _skew),
           alignment: Alignment.center,
           child: widget.child,
@@ -104,8 +122,12 @@ class _GlitchEffectState extends State<GlitchEffect> {
         if (_xOffset.abs() > 10)
           ...List.generate(3, (i) => Positioned(
             top: _random.nextDouble() * MediaQuery.of(context).size.height,
-            left: 0, right: 0,
-            child: Container(height: 1 + _random.nextDouble() * 3, color: Colors.white.withValues(alpha: 0.15)),
+            left: 0, 
+            right: 0,
+            child: Container(
+              height: 1 + _random.nextDouble() * 3, 
+              color: Colors.white.withValues(alpha: 0.15)
+            ),
           )),
       ],
     );

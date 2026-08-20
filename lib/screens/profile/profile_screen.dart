@@ -5,7 +5,6 @@ import '../../theme/app_colors.dart';
 import '../../services/auth_service.dart';
 import '../../services/user_service.dart';
 import '../../widgets/cyber_toast.dart';
-import '../auth/login_screen.dart';
 import 'widgets/avatar_picker.dart';
 import 'widgets/main_profile_card.dart';
 import 'widgets/stats_card.dart';
@@ -38,6 +37,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final localUser = jsonDecode(userJson);
       final serverUser = await UserService().getProfile(localUser['id']);
       if (serverUser != null) {
+        UserSession.setUser(serverUser); // Update Global
         setState(() {
           _userData = serverUser;
           _isLoading = false;
@@ -57,6 +57,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     
     final updatedUser = await UserService().updateAvatar(_userData!['id'], newAvatarName);
     if (updatedUser != null) {
+      UserSession.setUser(updatedUser); // Update Global
       setState(() {
         _userData = updatedUser;
       });
@@ -165,12 +166,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: InkWell(
           onTap: () async {
             await AuthService().logout();
-            if (context.mounted) {
-              Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (context) => const LoginScreen()),
-                (route) => false,
-              );
-            }
           },
           borderRadius: BorderRadius.circular(15),
           child: Center(

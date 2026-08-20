@@ -1,4 +1,5 @@
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AudioService {
@@ -29,7 +30,7 @@ class AudioService {
       await _musicPlayer.play(AssetSource('sound/sound_track.mp3'));
       await _musicPlayer.setVolume(_musicVolume);
     } catch (e) {
-      print("Erreur BGM: $e");
+      debugPrint("Erreur BGM: $e");
     }
   }
 
@@ -74,7 +75,7 @@ class AudioService {
         await _sfxPlayer.play(AssetSource('sound/$fileName'));
       }
     } catch (e) {
-      print("Erreur SFX ($fileName): $e");
+      debugPrint("Erreur SFX ($fileName): $e");
     }
   }
 

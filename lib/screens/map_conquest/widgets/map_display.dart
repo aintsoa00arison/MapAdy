@@ -37,7 +37,8 @@ class MapDisplay extends StatelessWidget {
       myLocationTrackingMode: isFollowingUser
           ? MyLocationTrackingMode.trackingCompass
           : MyLocationTrackingMode.none,
-      // On ajuste la boussole pour qu'elle soit bien visible sous la TopBar
+      // On masque la boussole via compassEnabled
+      compassEnabled: false,
       compassViewPosition: CompassViewPosition.topRight,
       compassViewMargins: const math.Point(24, 110),
     );

@@ -10,10 +10,7 @@ import 'widgets/answer_option.dart';
 import 'widgets/hint_section.dart';
 import 'widgets/quiz_progress.dart';
 import '../../widgets/cyber_toast.dart';
-
-import '../map_conquest/widgets/map_display.dart';
 import '../../widgets/effects/glitch_effect.dart';
-
 import '../../services/audio_service.dart';
 
 class QuizScreen extends StatefulWidget {
@@ -69,7 +66,9 @@ class _QuizScreenState extends State<QuizScreen> {
   void _startTimer() {
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_secondsLeft > 0) {
-        setState(() => _secondsLeft--);
+        if (mounted) {
+          setState(() => _secondsLeft--);
+        }
       } else {
         _endQuiz(timeout: true);
       }
@@ -77,7 +76,9 @@ class _QuizScreenState extends State<QuizScreen> {
   }
 
   Future<void> _loadNextQuestion() async {
-    setState(() => _isLoading = true);
+    if (mounted) {
+      setState(() => _isLoading = true);
+    }
     final question = await _quizService.getNextQuestion(_userId, baseId: widget.baseId);
     
     if (mounted && question != null) {
@@ -98,11 +99,11 @@ class _QuizScreenState extends State<QuizScreen> {
         _isSpyRevealing = false;
         _isGlitching = !_ghostKeyActive && effects.contains('GLITCHSCREEN');
         
-        if (!_ghostKeyActive) {
-          if (effects.contains('SAFEDROP') && _questionsAnswered == 0) {
+        if (!_ghostKeyActive && _questionsAnswered == 0) {
+          if (effects.contains('SAFEDROP')) {
             _safeDropCharges = 2;
           }
-          if (effects.contains('CYBERSPY') && _questionsAnswered == 0) {
+          if (effects.contains('CYBERSPY')) {
             _cyberSpyCharges = 2;
           }
         }
@@ -111,7 +112,9 @@ class _QuizScreenState extends State<QuizScreen> {
       if (_isGlitching) {
         _glitchTimer?.cancel();
         _glitchTimer = Timer(const Duration(seconds: 3), () {
-          if (mounted) setState(() => _isGlitching = false);
+          if (mounted) {
+            setState(() => _isGlitching = false);
+          }
         });
       }
     }
@@ -124,29 +127,38 @@ class _QuizScreenState extends State<QuizScreen> {
     final isCorrect = answers[index]['is_correct'] as bool;
 
     if (!isCorrect && _safeDropCharges > 0 && !_ghostKeyActive) {
-      AudioService().playWrong(); // Son d'erreur
+      AudioService().playWrong();
       setState(() {
         _safeDropCharges--;
         _eliminatedIndices.add(index);
       });
-      CyberToast.show(context, "BOUCLIER SAFEDROP ACTIVÉ ! -1 CHARGE");
+      if (mounted) {
+        CyberToast.show(context, "BOUCLIER SAFEDROP ACTIVÉ ! -1 CHARGE");
+      }
       return;
     }
 
     if (isCorrect) {
-      AudioService().playCorrect(); // Son de succès
+      AudioService().playCorrect();
     } else {
-      AudioService().playWrong(); // Son d'erreur
+      AudioService().playWrong();
     }
 
     setState(() {
       _selectedIndex = index;
       _showFeedback = true;
       _questionsAnswered++;
-      if (isCorrect) _correctAnswersCount++;
+      if (isCorrect) {
+        _correctAnswersCount++;
+      }
     });
 
     final isLast = _questionsAnswered >= _totalQuestions;
+
+    String? currentDebug;
+    if (widget.debugEffects != null && widget.debugEffects!.isNotEmpty) {
+      currentDebug = widget.debugEffects!.first;
+    }
 
     final response = await _quizService.submitAnswer(
       userId: _userId,
@@ -156,17 +168,16 @@ class _QuizScreenState extends State<QuizScreen> {
       isLast: isLast,
       correctCount: _correctAnswersCount,
       totalQuestions: _totalQuestions,
-      debugGadget: widget.debugEffects?.first, // Envoi du gadget simulé au back
+      debugGadget: currentDebug,
     );
 
     if (response != null && response.containsKey('gold')) {
       UserSession.updateGold(response['gold']);
     }
 
-    // FROST TRAP DETECTION
     if (!_ghostKeyActive && response != null && response['stop_quiz'] == true) {
       _timer?.cancel();
-      AudioService().playGameOver(); // Son Game Over
+      AudioService().playGameOver();
       _showFrostTrapDialog(response['status'] ?? "PIÈGE ACTIVÉ");
       return;
     }
@@ -186,7 +197,9 @@ class _QuizScreenState extends State<QuizScreen> {
         _cyberSpyCharges--;
         _isSpyRevealing = true;
       });
-      CyberToast.show(context, "CYBERSPY : RÉPONSE ANALYSÉE");
+      if (mounted) {
+        CyberToast.show(context, "CYBERSPY : RÉPONSE ANALYSÉE");
+      }
     }
   }
 
@@ -204,7 +217,10 @@ class _QuizScreenState extends State<QuizScreen> {
           Text(message, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 14)),
         ]),
         actions: [
-          TextButton(onPressed: () { Navigator.pop(context); Navigator.pop(context); }, 
+          TextButton(onPressed: () { 
+            Navigator.pop(context); 
+            Navigator.pop(context); 
+          }, 
           child: const Text("REPLI TACTIQUE", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)))
         ],
       ),
@@ -226,7 +242,9 @@ class _QuizScreenState extends State<QuizScreen> {
               if (result != null && result.containsKey('gold')) {
                 UserSession.updateGold(result['gold']);
               }
-              if (context.mounted) Navigator.pop(context, true);
+              if (context.mounted) {
+                Navigator.pop(context, true);
+              }
             },
             child: const Text("QUITTER (-50 CC)", style: TextStyle(color: Colors.redAccent)),
           ),
@@ -274,7 +292,10 @@ class _QuizScreenState extends State<QuizScreen> {
           ],
         ),
         actions: [
-          TextButton(onPressed: () { Navigator.pop(context); Navigator.pop(context); }, 
+          TextButton(onPressed: () { 
+            Navigator.pop(context); 
+            Navigator.pop(context); 
+          },
           child: const Text("TERMINER", style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold)))
         ],
       ),

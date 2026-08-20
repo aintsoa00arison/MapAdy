@@ -1,7 +1,5 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'theme/app_theme.dart';
 import 'widgets/top_bar/top_bar.dart';
 import 'widgets/bottom_bar/bottom_bar.dart';
@@ -75,22 +73,25 @@ class RootNavigation extends StatefulWidget {
 
 class _RootNavigationState extends State<RootNavigation> {
   int _currentIndex = 0;
-  Map<String, dynamic>? _userData;
+
+  final Map<int, Widget> _screenCache = {};
 
   Widget _getSelectedScreen(int index) {
-    switch (index) {
-      case 0: return const MapConquestScreen();
-      case 1: return const ShopScreen();
-      case 2: return const RankingScreen();
-      case 3: return const TerritoryScreen();
-      default: return const MapConquestScreen();
+    if (!_screenCache.containsKey(index)) {
+      switch (index) {
+        case 0: _screenCache[index] = const MapConquestScreen(); break;
+        case 1: _screenCache[index] = const ShopScreen(); break;
+        case 2: _screenCache[index] = const RankingScreen(); break;
+        case 3: _screenCache[index] = const TerritoryScreen(); break;
+        default: _screenCache[index] = const MapConquestScreen();
+      }
     }
+    return _screenCache[index]!;
   }
 
   @override
   void initState() {
     super.initState();
-    _userData = UserSession.userNotifier.value;
     navigationNotifier.addListener(_onNavigationRequest);
     _refreshUserData();
     
@@ -113,7 +114,6 @@ class _RootNavigationState extends State<RootNavigation> {
       UserService().getProfile(user['id']).then((updatedUser) {
         if (updatedUser != null && mounted) {
           UserSession.setUser(updatedUser);
-          setState(() => _userData = updatedUser);
         }
       });
     }
@@ -135,25 +135,22 @@ class _RootNavigationState extends State<RootNavigation> {
         return Scaffold(
           body: Stack(
             children: [
-              _getSelectedScreen(_currentIndex),
+              IndexedStack(
+                index: _currentIndex,
+                children: List.generate(4, (i) => _getSelectedScreen(i)),
+              ),
+
               Positioned(
                 top: 0, left: 0, right: 0,
                 child: SafeArea(
-                  child: ValueListenableBuilder<Map<String, dynamic>?>(
-                    valueListenable: UserSession.userNotifier,
-                    builder: (context, user, child) {
-                      return TopBar(
-                        username: user?['username'] ?? 'AGENT',
-                        gold: user?['gold'] ?? 0,
-                        avatarPath: user?['avatar'] ?? 'avatar_1.jpeg',
-                        onProfileReturn: _refreshUserData,
-                        showBackButton: hideBars,
-                        onBack: () => hideBarsNotifier.value = false,
-                      );
-                    },
+                  child: TopBar(
+                    onProfileReturn: _refreshUserData,
+                    showBackButton: hideBars,
+                    onBack: () => hideBarsNotifier.value = false,
                   ),
                 ),
               ),
+
               if (!hideBars)
                 Positioned(
                   bottom: 0, left: 0, right: 0,

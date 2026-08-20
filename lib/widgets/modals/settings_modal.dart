@@ -45,7 +45,6 @@ class _SettingsModalState extends State<SettingsModal> {
         ),
         child: Column(
           children: [
-            // Header
             _buildHeader(context),
             
             Expanded(
@@ -53,7 +52,6 @@ class _SettingsModalState extends State<SettingsModal> {
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   children: [
-                    // Section Contrôle Audio
                     _buildSection(
                       title: 'CONTROLE AUDIO',
                       icon: Icons.volume_up_outlined,
@@ -69,7 +67,6 @@ class _SettingsModalState extends State<SettingsModal> {
                       ],
                     ),
                     const SizedBox(height: 24),
-                    // Section Préférences Système
                     _buildSection(
                       title: 'PREFERENCES SYSTEME',
                       icon: Icons.settings_suggest_outlined,
@@ -78,11 +75,69 @@ class _SettingsModalState extends State<SettingsModal> {
                         _buildSwitchRow('Retour Haptique', _haptic, (v) => setState(() => _haptic = v)),
                       ],
                     ),
+                    const SizedBox(height: 30),
+                    // Section Signature
+                    _buildSignature(),
                   ],
                 ),
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSignature() {
+    return Column(
+      children: [
+        Divider(color: AppColors.primary.withValues(alpha: 0.1), thickness: 1),
+        const SizedBox(height: 15),
+        const Text(
+          'DEVELOPED BY AGENTS',
+          style: TextStyle(
+            color: Colors.white24,
+            fontSize: 8,
+            letterSpacing: 3,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _nameTag('RANJA'),
+            _nameTag('LANDRY'),
+            _nameTag('HONTY'),
+            _nameTag('AINTSOA'),
+          ],
+        ),
+        const SizedBox(height: 15),
+        const Text(
+          'mapADy OS v1.0.1 © 2026',
+          style: TextStyle(color: Colors.white10, fontSize: 7),
+        ),
+      ],
+    );
+  }
+
+  Widget _nameTag(String name) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.secondary.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(color: AppColors.secondary.withValues(alpha: 0.2)),
+      ),
+      child: Text(
+        name,
+        style: const TextStyle(
+          color: AppColors.secondary,
+          fontSize: 9,
+          fontWeight: FontWeight.w900,
+          fontFamily: 'Anybody',
+          letterSpacing: 1,
         ),
       ),
     );
@@ -97,7 +152,6 @@ class _SettingsModalState extends State<SettingsModal> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-
           Text(
             'PARAMETRES',
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
@@ -184,7 +238,8 @@ class _SettingsModalState extends State<SettingsModal> {
           Text(label, style: const TextStyle(color: Colors.white, fontSize: 14)),
           Switch(
             value: value,
-            activeColor: AppColors.primary,
+            activeThumbColor: AppColors.primary,
+            activeTrackColor: AppColors.primary.withValues(alpha: 0.3),
             onChanged: onChanged,
           ),
         ],

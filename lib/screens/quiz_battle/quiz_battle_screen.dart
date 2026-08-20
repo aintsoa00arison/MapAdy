@@ -34,12 +34,11 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
   int _userId = -1;
   int _questionsAnswered = 0;
   int _correctAnswersCount = 0;
-  int _totalQuestions = 6;
+  static const int _totalQuestions = 6;
   bool _isLoading = true;
   bool _showFeedback = false;
   int? _selectedIndex;
   
-  // Opponent Logic (Simulated for now)
   int _opponentQuestionsAnswered = 0;
   Timer? _opponentTimer;
   final Random _random = Random();
@@ -65,27 +64,31 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
   }
 
   void _startGameTimers() {
-    // Timer global du quiz
     _gameTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_secondsLeft > 0) {
-        setState(() => _secondsLeft--);
+        if (mounted) {
+          setState(() => _secondsLeft--);
+        }
       } else {
         _endBattle();
       }
     });
 
-    // Simulation de l'adversaire (répond toutes les 5-8 secondes)
     _opponentTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_opponentQuestionsAnswered < _totalQuestions && _random.nextDouble() < 0.15) {
-        setState(() {
-          _opponentQuestionsAnswered++;
-        });
+        if (mounted) {
+          setState(() {
+            _opponentQuestionsAnswered++;
+          });
+        }
       }
     });
   }
 
   Future<void> _loadNextQuestion() async {
-    setState(() => _isLoading = true);
+    if (mounted) {
+      setState(() => _isLoading = true);
+    }
     final question = await _quizService.getNextQuestion(_userId, baseId: widget.baseId);
     if (mounted) {
       setState(() {
@@ -107,7 +110,9 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
       _selectedIndex = index;
       _showFeedback = true;
       _questionsAnswered++;
-      if (isCorrect) _correctAnswersCount++;
+      if (isCorrect) {
+        _correctAnswersCount++;
+      }
     });
 
     final isLast = _questionsAnswered >= _totalQuestions;
@@ -135,10 +140,7 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
     _gameTimer?.cancel();
     _opponentTimer?.cancel();
 
-    bool iWon = _correctAnswersCount > (_opponentQuestionsAnswered - 1); // Logic simple
-    if (_correctAnswersCount == _opponentQuestionsAnswered) {
-      // En cas d'égalité, le temps ou la précision pure trancherait
-    }
+    bool iWon = _correctAnswersCount > (_opponentQuestionsAnswered - 1); 
 
     showDialog(
       context: context,
@@ -161,7 +163,7 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
             const SizedBox(height: 20),
             Text(iWon ? "VOUS AVEZ PRIS LE CONTRÔLE !" : "L'ADVERSAIRE A GARDÉ LE SECTEUR.", 
               textAlign: TextAlign.center,
-              style: const TextStyle(fontWeight: FontWeight.bold)),
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ],
         ),
         actions: [
@@ -186,16 +188,17 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (_isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
 
     return GlitchEffect(
-      active: false, // Pas de glitch pour l'instant en mode battle simple
+      active: false, 
       child: Scaffold(
         backgroundColor: AppColors.background,
         body: SafeArea(
           child: Column(
             children: [
-              // BARRE DE L'ADVERSAIRE (HUD BATTLE)
               OpponentProgressBar(
                 opponentName: widget.opponentData['username'],
                 opponentAvatar: widget.opponentData['avatar'],

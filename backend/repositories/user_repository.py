@@ -16,13 +16,16 @@ class UserRepository:
 
     def create_user(self, user_data: UserCreate):
         current_date = datetime.now().strftime("%b %Y")
+        # Calculer le nombre actuel d'utilisateurs pour donner le rang le plus bas
+        user_count = self.db.query(User).count()
+
         new_user = User(
             username=user_data.username,
             email=user_data.email,
             avatar="avatar_default.jpeg",
             gold=100,
             rank_title=RankTitleEnum.ROOKIE,
-            rank_position=0,
+            rank_position=user_count + 1,
             joined_date=current_date
         )
         self.db.add(new_user)

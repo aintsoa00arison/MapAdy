@@ -14,9 +14,8 @@ from logic.email_service import EmailService
 from typing import List, Optional
 from datetime import datetime, timedelta
 
-app = FastAPI(title="mapADy Cyber-Backend", version="3.6.5")
+app = FastAPI(title="mapADy Cyber-Backend", version="3.6.7")
 
-# Configuration CORS pour autoriser le mobile
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -27,8 +26,7 @@ app.add_middleware(
 
 models.Base.metadata.create_all(bind=engine)
 
-# Stockage temporaire des codes
-verification_codes = {}
+# --- DEPENDENCIES ---
 
 def get_user_use_cases(db: Session = Depends(get_db)):
     return UserUseCases(UserRepository(db))
@@ -36,7 +34,6 @@ def get_user_use_cases(db: Session = Depends(get_db)):
 def get_quiz_use_cases(db: Session = Depends(get_db)):
     return QuizUseCases(QuizRepository(db))
 
-# --- ROUTER API ---
 api_router = APIRouter(prefix="/api")
 
 # --- AUTH & USERS ---
@@ -45,38 +42,21 @@ api_router = APIRouter(prefix="/api")
 def login(login_data: schemas.UserLogin, service: UserUseCases = Depends(get_user_use_cases)):
     user = service.login_user(login_data)
     if not user:
-        raise HTTPException(status_code=401, detail="Échec identification")
+        raise HTTPException(status_code=401, detail="Agent non trouvé")
     return user
-
-@api_router.post("/users/register", response_model=schemas.UserResponse, status_code=status.HTTP_201_CREATED)
-def register(user_data: schemas.UserCreate, service: UserUseCases = Depends(get_user_use_cases)):
-    return service.register_user(user_data)
 
 @api_router.get("/users/{user_id}", response_model=schemas.UserResponse)
 def get_profile(user_id: int, service: UserUseCases = Depends(get_user_use_cases)):
-    user = service.get_user_profile(user_id)
-    if not user:
-        raise HTTPException(status_code=404, detail="Agent non trouvé")
-    return user
+    return service.get_user_profile(user_id)
 
 @api_router.get("/users/{user_id}/gadgets")
 def get_user_gadgets(user_id: int, db: Session = Depends(get_db)):
     all_gadgets = db.query(models.Gadget).all()
     owned_gadgets = db.query(models.UserGadget).filter(models.UserGadget.user_id == user_id).all()
     owned_map = {og.gadget_id: og.quantity for og in owned_gadgets}
-    return [{
-        "id": g.id, "name": g.name, "description": g.description,
-        "image_url": g.image_url, "type": g.type, "quantity": owned_map.get(g.id, 0)
-    } for g in all_gadgets]
+    return [{"id": g.id, "name": g.name, "description": g.description, "image_url": g.image_url, "type": g.type, "quantity": owned_map.get(g.id, 0)} for g in all_gadgets]
 
-@api_router.post("/users/{user_id}/update-avatar", response_model=schemas.UserResponse)
-def update_avatar(user_id: int, payload: dict = Body(...), db: Session = Depends(get_db)):
-    repo = UserRepository(db)
-    user = repo.update_avatar(user_id, payload.get("avatar"))
-    if not user: raise HTTPException(status_code=404)
-    return user
-
-# --- QUIZ & BATTLE ---
+# --- QUIZ & TACTICAL ---
 
 @api_router.get("/quiz/next/{user_id}")
 def get_next_quiz(user_id: int, base_id: Optional[int] = Query(None), service: QuizUseCases = Depends(get_quiz_use_cases)):
@@ -89,6 +69,8 @@ def submit_quiz_answer(payload: dict = Body(...), db: Session = Depends(get_db))
     base_id = payload.get("base_id")
     is_last = payload.get("is_last", False)
     correct_count = payload.get("correct_count", 0)
+    total_questions = payload.get("total_questions", 6)
+    debug_gadget = payload.get("debug_gadget")
 
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user: raise HTTPException(status_code=404)
@@ -97,25 +79,45 @@ def submit_quiz_answer(payload: dict = Body(...), db: Session = Depends(get_db))
     status_msg = "OK"
     earned_gold = 0
 
-    if base_id is not None and not is_correct:
-        frost_active = db.query(models.ActiveDefense).filter(
-            models.ActiveDefense.base_id == base_id,
-            models.ActiveDefense.expires_at > datetime.now()
-        ).join(models.Gadget).filter(models.Gadget.name == "FrostTrap").first()
+    if not is_correct:
+        trigger_freeze = False
+        if base_id == 0 and debug_gadget == "FROSTTRAP":
+            trigger_freeze = True
+        elif base_id and base_id != 0:
+            frost_active = db.query(models.ActiveDefense).filter(
+                models.ActiveDefense.base_id == base_id,
+                models.ActiveDefense.expires_at > datetime.now()
+            ).join(models.Gadget).filter(models.Gadget.name == "FrostTrap").first()
+            if frost_active: trigger_freeze = True
 
-        if frost_active or base_id == 0: # Simulation FrostTrap
+        if trigger_freeze:
             penalty = 150
             user.gold = max(0, user.gold - penalty)
             stop_quiz = True
-            status_msg = f"GELÉ ! -{penalty} CC"
+            status_msg = f"SYSTÈME GELÉ ! -{penalty} CC."
 
     if is_last and not stop_quiz:
         earned_gold = correct_count * 10
-        if correct_count == 6: earned_gold += 20
+        if correct_count == total_questions: earned_gold += 20
+
+        trigger_drain = False
+        if base_id == 0 and debug_gadget == "DRAINCASH":
+            trigger_drain = True
+        elif base_id and base_id != 0:
+            drain_active = db.query(models.ActiveDefense).filter(
+                models.ActiveDefense.base_id == base_id,
+                models.ActiveDefense.expires_at > datetime.now()
+            ).join(models.Gadget).filter(models.Gadget.name == "DrainCash").first()
+            if drain_active: trigger_drain = True
+
+        if trigger_drain and correct_count < total_questions:
+            earned_gold = 0
+            status_msg = "DRAINCASH : GAINS NEUTRALISÉS"
+
         user.gold += earned_gold
         user.quiz_victories += 1
 
-        if base_id and base_id != 0 and correct_count == 6:
+        if base_id and base_id != 0 and correct_count == total_questions:
             base = db.query(models.GameBase).filter(models.GameBase.id == base_id).first()
             if base:
                 base.owner_id = user.id
@@ -125,7 +127,7 @@ def submit_quiz_answer(payload: dict = Body(...), db: Session = Depends(get_db))
     db.commit()
     return {"gold": user.gold, "stop_quiz": stop_quiz, "status": status_msg, "earned": earned_gold}
 
-# --- BASES & BOUTIQUE ---
+# --- WORLD & SHOP ---
 
 @api_router.get("/bases", response_model=List[schemas.GameBaseResponse])
 def get_all_bases(db: Session = Depends(get_db)):
@@ -149,21 +151,15 @@ def get_shop_gadgets(db: Session = Depends(get_db)):
 def get_shop_avatars(db: Session = Depends(get_db)):
     return db.query(models.AvatarItem).filter(models.AvatarItem.image_url != "avatar_default.jpeg").all()
 
-@api_router.post("/shop/purchase")
-def purchase_item(payload: dict = Body(...), db: Session = Depends(get_db)):
-    repo = UserRepository(db)
-    return repo.purchase_item(payload.get("user_id"), payload.get("item_id"), payload.get("category"))
-
 @api_router.get("/leaderboard", response_model=List[schemas.UserResponse])
 def get_leaderboard(service: UserUseCases = Depends(get_user_use_cases)):
     return service.get_leaderboard()
 
-# Inclusion du router dans l'app
 app.include_router(api_router)
 
 @app.get("/")
 def health():
-    return {"status": "ONLINE", "msg": "mapADy OS is running"}
+    return {"status": "ONLINE", "version": "3.6.7"}
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
@@ -17,22 +18,22 @@ class ApiClient {
     final cleanEndpoint = endpoint.startsWith('/') ? endpoint : '/$endpoint';
     final fullUrl = "$baseUrl$cleanEndpoint";
     
-    print("📡 [OUTGOING] POST : $fullUrl");
+    debugPrint("📡 [OUTGOING] POST : $fullUrl");
 
     try {
       final response = await http.post(
         Uri.parse(fullUrl),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode(body),
-      ).timeout(const Duration(seconds: 60)); // Augmenté à 60s pour Render Free
+      ).timeout(const Duration(seconds: 60)); 
       
-      print("✅ [RESPONSE] ${response.statusCode} from $endpoint");
+      debugPrint("✅ [RESPONSE] ${response.statusCode} from $endpoint");
       return response;
     } on TimeoutException {
-      print("⏰ [TIMEOUT] Le serveur Render se réveille, réessayez dans quelques secondes...");
-      return http.Response(jsonEncode({"error": "Le serveur met trop de temps à répondre (Cold Start)"}), 408);
+      debugPrint("⏰ [TIMEOUT] Le serveur Render se réveille...");
+      return http.Response(jsonEncode({"error": "Timeout Render Free"}), 408);
     } catch (e) {
-      print("❌ [CRITICAL ERROR] POST $endpoint : $e");
+      debugPrint("❌ [CRITICAL ERROR] POST $endpoint : $e");
       return http.Response(jsonEncode({"error": e.toString()}), 500);
     }
   }
@@ -41,21 +42,21 @@ class ApiClient {
     final cleanEndpoint = endpoint.startsWith('/') ? endpoint : '/$endpoint';
     final fullUrl = "$baseUrl$cleanEndpoint";
     
-    print("📡 [OUTGOING] GET : $fullUrl");
+    debugPrint("📡 [OUTGOING] GET : $fullUrl");
 
     try {
       final response = await http.get(
         Uri.parse(fullUrl),
         headers: {"Content-Type": "application/json"},
-      ).timeout(const Duration(seconds: 60)); // Augmenté à 60s
+      ).timeout(const Duration(seconds: 60));
       
-      print("✅ [RESPONSE] ${response.statusCode} from $endpoint");
+      debugPrint("✅ [RESPONSE] ${response.statusCode} from $endpoint");
       return response;
     } on TimeoutException {
-      print("⏰ [TIMEOUT] Le serveur Render est en cours de réveil...");
+      debugPrint("⏰ [TIMEOUT] Le serveur Render se réveille...");
       return http.Response(jsonEncode({"error": "Timeout Render Free"}), 408);
     } catch (e) {
-      print("❌ [CRITICAL ERROR] GET $endpoint : $e");
+      debugPrint("❌ [CRITICAL ERROR] GET $endpoint : $e");
       return http.Response(jsonEncode({"error": e.toString()}), 500);
     }
   }
