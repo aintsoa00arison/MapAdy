@@ -14,7 +14,7 @@ from logic.email_service import EmailService
 from typing import List, Optional
 from datetime import datetime, timedelta
 
-app = FastAPI(title="mapADy Cyber-Backend", version="3.6.10")
+app = FastAPI(title="mapADy Cyber-Backend", version="3.6.11")
 
 app.add_middleware(
     CORSMiddleware,
@@ -34,7 +34,6 @@ def get_user_use_cases(db: Session = Depends(get_db)):
 def get_quiz_use_cases(db: Session = Depends(get_db)):
     return QuizUseCases(QuizRepository(db))
 
-# On ne met PAS de prefix ici car il est déjà dans l'URL du front (.env)
 api_router = APIRouter()
 
 # --- AUTH & USERS ---
@@ -160,6 +159,31 @@ def get_all_bases(db: Session = Depends(get_db)):
         results.append(base_dict)
     return results
 
+@api_router.post("/bases/{base_id}/activate-defense")
+def activate_defense(base_id: int, payload: dict = Body(...), db: Session = Depends(get_db)):
+    user_id = payload.get("user_id")
+    gadget_id = payload.get("gadget_id")
+
+    # 1. Vérification du gadget
+    user_gadget = db.query(models.UserGadget).filter(
+        models.UserGadget.user_id == user_id,
+        models.UserGadget.gadget_id == gadget_id
+    ).first()
+
+    if not user_gadget or user_gadget.quantity <= 0:
+        raise HTTPException(status_code=400, detail="Gadget non possédé")
+
+    # 2. Vérification de la propriété de la base
+    base = db.query(models.GameBase).filter(models.GameBase.id == base_id).first()
+    if not base or base.owner_id != user_id:
+        raise HTTPException(status_code=403, detail="Vous ne contrôlez pas ce secteur")
+
+    # 3. Consommation et Activation
+    user_gadget.quantity -= 1
+    db.add(models.ActiveDefense(base_id=base_id, gadget_id=gadget_id))
+    db.commit()
+    return {"status": "SUCCESS", "message": "Défense activée"}
+
 @api_router.get("/shop/gadgets")
 def get_shop_gadgets(db: Session = Depends(get_db)):
     return db.query(models.Gadget).all()
@@ -174,13 +198,9 @@ def purchase_item(payload: dict = Body(...), db: Session = Depends(get_db)):
     user_id = payload.get("user_id")
     item_id = payload.get("item_id")
     category = payload.get("category")
-
-    # Vérification si déjà possédé pour renvoyer une erreur explicite
     if category == "AVATARS":
         already = db.query(models.UserAvatar).filter(models.UserAvatar.user_id == user_id, models.UserAvatar.avatar_item_id == item_id).first()
-        if already:
-            raise HTTPException(status_code=400, detail="Vous possédez déjà cet avatar.")
-
+        if already: raise HTTPException(status_code=400, detail="Vous possédez déjà cet avatar.")
     return repo.purchase_item(user_id, item_id, category)
 
 @api_router.get("/leaderboard", response_model=List[schemas.UserResponse])
@@ -191,7 +211,7 @@ app.include_router(api_router, prefix="/api")
 
 @app.get("/")
 def health():
-    return {"status": "ONLINE", "version": "3.6.10"}
+    return {"status": "ONLINE", "version": "3.6.11"}
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
