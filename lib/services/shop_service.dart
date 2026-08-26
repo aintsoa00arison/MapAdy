@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'api_client.dart';
 import 'endpoints.dart';
 
@@ -37,12 +38,13 @@ class ShopService {
         "category": category
       });
       
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
         return jsonDecode(response.body);
       }
-      // Return null or throw specific error based on status code
+      debugPrint("🛒 PURCHASE FAILED: Status ${response.statusCode} - ${response.body}");
       return null;
     } catch (e) {
+      debugPrint("🛒 PURCHASE ERROR: $e");
       return null;
     }
   }

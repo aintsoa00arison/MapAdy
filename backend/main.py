@@ -14,7 +14,7 @@ from logic.email_service import EmailService
 from typing import List, Optional
 from datetime import datetime, timedelta
 
-app = FastAPI(title="mapADy Cyber-Backend", version="3.6.7")
+app = FastAPI(title="mapADy Cyber-Backend", version="3.6.9")
 
 app.add_middleware(
     CORSMiddleware,
@@ -47,7 +47,10 @@ def login(login_data: schemas.UserLogin, service: UserUseCases = Depends(get_use
 
 @api_router.get("/users/{user_id}", response_model=schemas.UserResponse)
 def get_profile(user_id: int, service: UserUseCases = Depends(get_user_use_cases)):
-    return service.get_user_profile(user_id)
+    user = service.get_user_profile(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Agent non trouvé")
+    return user
 
 @api_router.get("/users/{user_id}/gadgets")
 def get_user_gadgets(user_id: int, db: Session = Depends(get_db)):
@@ -55,6 +58,13 @@ def get_user_gadgets(user_id: int, db: Session = Depends(get_db)):
     owned_gadgets = db.query(models.UserGadget).filter(models.UserGadget.user_id == user_id).all()
     owned_map = {og.gadget_id: og.quantity for og in owned_gadgets}
     return [{"id": g.id, "name": g.name, "description": g.description, "image_url": g.image_url, "type": g.type, "quantity": owned_map.get(g.id, 0)} for g in all_gadgets]
+
+@api_router.post("/users/{user_id}/update-avatar", response_model=schemas.UserResponse)
+def update_avatar(user_id: int, payload: dict = Body(...), db: Session = Depends(get_db)):
+    repo = UserRepository(db)
+    user = repo.update_avatar(user_id, payload.get("avatar"))
+    if not user: raise HTTPException(status_code=404)
+    return user
 
 # --- QUIZ & TACTICAL ---
 
@@ -97,9 +107,20 @@ def submit_quiz_answer(payload: dict = Body(...), db: Session = Depends(get_db))
             status_msg = f"SYSTÈME GELÉ ! -{penalty} CC."
 
     if is_last and not stop_quiz:
+        # Calcul de base
         earned_gold = correct_count * 10
-        if correct_count == total_questions: earned_gold += 20
 
+        # INFLUENCE AVATAR : Convenience Hacker (+20% Gold)
+        gold_multiplier = 1.0
+        if user.avatar == "avatar_5.jpeg":
+            gold_multiplier = 1.2
+
+        earned_gold = int(earned_gold * gold_multiplier)
+
+        if correct_count == total_questions:
+            earned_gold += 20 # Bonus fixe pour sans-faute
+
+        # DRAINCASH logic
         trigger_drain = False
         if base_id == 0 and debug_gadget == "DRAINCASH":
             trigger_drain = True
@@ -151,6 +172,18 @@ def get_shop_gadgets(db: Session = Depends(get_db)):
 def get_shop_avatars(db: Session = Depends(get_db)):
     return db.query(models.AvatarItem).filter(models.AvatarItem.image_url != "avatar_default.jpeg").all()
 
+@api_router.post("/shop/purchase", response_model=schemas.UserResponse)
+def purchase_item(payload: dict = Body(...), db: Session = Depends(get_db)):
+    repo = UserRepository(db)
+    user_id = payload.get("user_id")
+    item_id = payload.get("item_id")
+    category = payload.get("category")
+
+    if not user_id or not item_id or not category:
+        raise HTTPException(status_code=400, detail="Données d'achat incomplètes")
+
+    return repo.purchase_item(user_id, item_id, category)
+
 @api_router.get("/leaderboard", response_model=List[schemas.UserResponse])
 def get_leaderboard(service: UserUseCases = Depends(get_user_use_cases)):
     return service.get_leaderboard()
@@ -159,7 +192,7 @@ app.include_router(api_router)
 
 @app.get("/")
 def health():
-    return {"status": "ONLINE", "version": "3.6.7"}
+    return {"status": "ONLINE", "version": "3.6.9"}
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

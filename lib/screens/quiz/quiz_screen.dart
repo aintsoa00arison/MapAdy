@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme/app_colors.dart';
 import '../../services/auth_service.dart';
 import '../../services/quiz_service.dart';
+import '../../logic/gadget_influence_manager.dart';
 import 'widgets/question_header.dart';
 import 'widgets/answer_option.dart';
 import 'widgets/hint_section.dart';
@@ -27,6 +28,7 @@ class _QuizScreenState extends State<QuizScreen> {
   final QuizService _quizService = QuizService();
   Map<String, dynamic>? _currentQuestion;
   int _userId = -1;
+  String? _userAvatar;
   int _questionsAnswered = 0;
   int _correctAnswersCount = 0;
   int _totalQuestions = 6;
@@ -36,6 +38,7 @@ class _QuizScreenState extends State<QuizScreen> {
   bool _isGlitching = false;
   bool _ghostKeyActive = false;
   
+  Map<String, dynamic> _effectiveStats = GadgetInfluenceManager.getEffectiveStats(null);
   int _safeDropCharges = 0;
   List<int> _eliminatedIndices = [];
 
@@ -58,6 +61,8 @@ class _QuizScreenState extends State<QuizScreen> {
     if (userJson != null) {
       final user = jsonDecode(userJson);
       _userId = user['id'];
+      _userAvatar = user['avatar'];
+      _effectiveStats = GadgetInfluenceManager.getEffectiveStats(_userAvatar);
       _loadNextQuestion();
       _startTimer();
     }
@@ -91,7 +96,10 @@ class _QuizScreenState extends State<QuizScreen> {
 
       setState(() {
         _currentQuestion = question;
-        _totalQuestions = _ghostKeyActive ? 6 : ((widget.debugEffects?.contains('IRON_TWIN') ?? false) ? 10 : (question['total_needed'] ?? 6));
+        // Application de l'influence IronTwin si l'avatar est Chain-Skull
+        int extraQuestions = _effectiveStats['irontwin_extra'] ?? 4;
+        _totalQuestions = _ghostKeyActive ? 6 : ((widget.debugEffects?.contains('IRON_TWIN') ?? false || effects.contains('IRON_TWIN')) ? (6 + extraQuestions) : (question['total_needed'] ?? 6));
+        
         _isLoading = false;
         _showFeedback = false;
         _selectedIndex = null;
@@ -101,17 +109,19 @@ class _QuizScreenState extends State<QuizScreen> {
         
         if (!_ghostKeyActive && _questionsAnswered == 0) {
           if (effects.contains('SAFEDROP')) {
-            _safeDropCharges = 2;
+            _safeDropCharges = _effectiveStats['safedrop_charges'] ?? 2;
           }
           if (effects.contains('CYBERSPY')) {
-            _cyberSpyCharges = 2;
+            _cyberSpyCharges = _effectiveStats['cyberspy_charges'] ?? 2;
           }
         }
       });
 
       if (_isGlitching) {
         _glitchTimer?.cancel();
-        _glitchTimer = Timer(const Duration(seconds: 3), () {
+        // Durée du glitch influencée par l'avatar
+        int duration = _effectiveStats['glitch_duration'] ?? 3;
+        _glitchTimer = Timer(Duration(seconds: duration), () {
           if (mounted) {
             setState(() => _isGlitching = false);
           }
@@ -196,9 +206,19 @@ class _QuizScreenState extends State<QuizScreen> {
       setState(() {
         _cyberSpyCharges--;
         _isSpyRevealing = true;
+        
+        // CyberSpy v2 : On élimine 2 mauvaises réponses
+        final answers = _currentQuestion!['answers'] as List;
+        int eliminated = 0;
+        for (int i = 0; i < answers.length; i++) {
+          if (!(answers[i]['is_correct'] as bool) && eliminated < 2) {
+            _eliminatedIndices.add(i);
+            eliminated++;
+          }
+        }
       });
       if (mounted) {
-        CyberToast.show(context, "CYBERSPY : RÉPONSE ANALYSÉE");
+        CyberToast.show(context, "CYBERSPY : ANALYSE DES FACOBLES");
       }
     }
   }
@@ -288,7 +308,8 @@ class _QuizScreenState extends State<QuizScreen> {
             else
               const Text("HACK ÉCHOUÉ. SANS-FAUTE REQUIS.", textAlign: TextAlign.center, style: TextStyle(color: Colors.redAccent, fontSize: 12)),
             const SizedBox(height: 8),
-            Text("+${_correctAnswersCount * 10}${_correctAnswersCount == _totalQuestions ? ' + 20 bonus' : ''} CC acquis.", style: const TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.bold)),
+            // Multiplicateur de gold appliqué à l'affichage
+            Text("+${(_correctAnswersCount * 10 * (_effectiveStats['gold_multiplier'] ?? 1.0)).toInt()}${_correctAnswersCount == _totalQuestions ? ' + 20 bonus' : ''} CC acquis.", style: const TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.bold)),
           ],
         ),
         actions: [
