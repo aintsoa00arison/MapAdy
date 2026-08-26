@@ -35,18 +35,23 @@ class PurchaseModal extends StatelessWidget {
     if (userJson == null) return;
 
     final user = jsonDecode(userJson);
-    final result = await ShopService().purchaseItem(user['id'], itemId, category);
+    final response = await ApiClient().post("/shop/purchase", {
+      "user_id": user['id'],
+      "item_id": itemId,
+      "category": category
+    });
 
     if (context.mounted) {
-      if (result != null) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final result = jsonDecode(response.body);
         await prefs.setString(AuthService.userKey, jsonEncode(result));
-        UserSession.updateGold(result['gold'] ?? 0); // Mise à jour immédiate du HUD
-        if (context.mounted) {
-          Navigator.pop(context);
-          CyberToast.show(context, "ACHAT RÉUSSI : $itemName");
-        }
+        UserSession.updateGold(result['gold'] ?? 0); 
+        Navigator.pop(context);
+        CyberToast.show(context, "ACHAT RÉUSSI : $itemName");
       } else {
-        CyberToast.show(context, "CRÉDITS INSUFFISANTS OU ERREUR", isError: true);
+        final errorData = jsonDecode(response.body);
+        final String message = errorData['detail'] ?? "ERREUR TRANSACTION";
+        CyberToast.show(context, message.toUpperCase(), isError: true);
       }
     }
   }
